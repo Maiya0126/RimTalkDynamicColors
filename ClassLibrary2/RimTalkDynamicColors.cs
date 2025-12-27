@@ -71,7 +71,7 @@ namespace RimTalkDynamicColors
 
         // 非人类支持
         public bool enableForNonHumans = false;
-        public Color nonHumanDefaultColor = new Color(0.6f, 0.8f, 0.6f, 1f); // 默认淡绿色
+        public Color nonHumanDefaultColor = new Color(0.6f, 0.8f, 0.6f, 1f);
 
         public bool useFactionColor = false;
         public bool autoApplyFavColor = true;
@@ -81,6 +81,8 @@ namespace RimTalkDynamicColors
         public bool selfTalkItalic = false;
         public bool selfTalkBold = false;
         public Color selfTalkColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+        // [新增] 自定义忽略正则
+        public string ignoredSelfTalkRegex = "";
 
         public bool enableRainbowEffect = true;
         public bool enableBlackWhiteEffect = true;
@@ -96,7 +98,7 @@ namespace RimTalkDynamicColors
             DynamicColorMod.ClearCaches();
             _combinedCache = new Dictionary<string, StyleData>();
 
-            // 1. 自定义名字 (最高优先级)
+            // 1. 自定义名字
             if (nameEntries != null)
             {
                 foreach (var entry in nameEntries)
@@ -141,7 +143,6 @@ namespace RimTalkDynamicColors
                         }
                         else
                         {
-                            // 非人类直接看开关
                             allow = enableForNonHumans;
                         }
 
@@ -151,19 +152,16 @@ namespace RimTalkDynamicColors
                         Color? finalColor = null;
                         bool finalBold = false;
 
-                        // A. 喜爱颜色 (仅限人类)
                         if (p.RaceProps.Humanlike && autoApplyFavColor && p.story != null && p.story.favoriteColor != null)
                         {
                             finalColor = p.story.favoriteColor.color;
                             finalBold = autoApplyBold;
                         }
-                        // B. 派系颜色
                         else if (useFactionColor && p.Faction != null)
                         {
                             finalColor = p.Faction.Color;
                             finalBold = false;
                         }
-                        // C. 非人类默认颜色
                         else if (!p.RaceProps.Humanlike && enableForNonHumans)
                         {
                             finalColor = nonHumanDefaultColor;
@@ -224,7 +222,6 @@ namespace RimTalkDynamicColors
             Scribe_Values.Look(ref enableForFriendlies, "enableForFriendlies", true);
             Scribe_Values.Look(ref enableForEnemies, "enableForEnemies", true);
 
-            // 保存非人类设置
             Scribe_Values.Look(ref enableForNonHumans, "enableForNonHumans", false);
             Scribe_Values.Look(ref nonHumanDefaultColor, "nonHumanDefaultColor", new Color(0.6f, 0.8f, 0.6f, 1f));
 
@@ -236,6 +233,7 @@ namespace RimTalkDynamicColors
             Scribe_Values.Look(ref selfTalkItalic, "selfTalkItalic", false);
             Scribe_Values.Look(ref selfTalkBold, "selfTalkBold", false);
             Scribe_Values.Look(ref selfTalkColor, "selfTalkColor", new Color(0.6f, 0.6f, 0.6f, 1f));
+            Scribe_Values.Look(ref ignoredSelfTalkRegex, "ignoredSelfTalkRegex", ""); // [保存]
 
             Scribe_Values.Look(ref enableRainbowEffect, "enableRainbowEffect", true);
             Scribe_Values.Look(ref enableBlackWhiteEffect, "enableBlackWhiteEffect", true);
@@ -413,6 +411,17 @@ namespace RimTalkDynamicColors
                 string pattern = @"(\(.*?\)|（.*?）|\*.*?\*|【.*?】)";
                 result = Regex.Replace(result, pattern, (Match m) =>
                 {
+                    // 1. 优先检查用户自定义忽略正则
+                    if (!string.IsNullOrEmpty(settings.ignoredSelfTalkRegex))
+                    {
+                        try
+                        {
+                            if (Regex.IsMatch(m.Value, settings.ignoredSelfTalkRegex)) return m.Value;
+                        }
+                        catch { } // 防止用户正则写错导致崩溃
+                    }
+
+                    // 2. 智能颜文字检测
                     if (IsLikelyKaomoji(m.Value)) return m.Value;
 
                     Color finalColor = settings.selfTalkColor;
@@ -447,14 +456,22 @@ namespace RimTalkDynamicColors
             return result;
         }
 
+        // [优化] 颜文字检测算法
         private static bool IsLikelyKaomoji(string input)
         {
             if (string.IsNullOrEmpty(input)) return false;
+            // 去掉首尾括号
             string content = input.Substring(1, input.Length - 2);
-            if (Regex.IsMatch(content, @"[\u4e00-\u9fa5]")) return false;
-            char[] kaomojiSymbols = new char[] { '_', '^', '=', ';', '@', 'o', '0', 'O' };
-            if (content.IndexOfAny(kaomojiSymbols) >= 0) return true;
-            return false;
+
+            // 1. 如果包含 CJK 字符（中日韩文字），通常是描述动作 -> 不是颜文字
+            if (Regex.IsMatch(content, @"[\u4e00-\u9fa5\u3040-\u30ff\u31f0-\u31ff]")) return false;
+
+            // 2. 如果包含连续的字母单词（如 sighs, laughs），通常是动作 -> 不是颜文字
+            // 简单的判定：如果有2个以上连续英文字母，且周围是单词边界
+            if (Regex.IsMatch(content, @"[a-zA-Z]{2,}")) return false;
+
+            // 3. 剩下的通常是纯符号或单个字母的表情 (如 T_T, >_<, o.o) -> 是颜文字
+            return true;
         }
 
         private static string GenerateRainbowText(string input)
@@ -497,7 +514,6 @@ namespace RimTalkDynamicColors
             listing.Label("<b>" + "RTDC_ChatHistoryViewer".Translate() + "</b>");
             listing.Label("RTDC_HistoryInfo".Translate(), -1f, null);
 
-            // 日志区域
             Rect viewerRect = listing.GetRect(viewHeightParam);
             Widgets.DrawBoxSolid(viewerRect, new Color(0.1f, 0.1f, 0.1f, 0.5f));
             Widgets.DrawBox(viewerRect);
@@ -648,13 +664,13 @@ namespace RimTalkDynamicColors
             listing.CheckboxLabeled("RTDC_EnableForFriendlies".Translate(), ref settings.enableForFriendlies, "RTDC_EnableForFriendliesDesc".Translate());
             listing.CheckboxLabeled("RTDC_EnableForEnemies".Translate(), ref settings.enableForEnemies, "RTDC_EnableForEnemiesDesc".Translate());
 
-            // [新增] UI: 非人类设置
+            // 非人类设置
             listing.Gap(5f);
             listing.CheckboxLabeled("RTDC_EnableForNonHumans".Translate(), ref settings.enableForNonHumans, "RTDC_EnableForNonHumansDesc".Translate());
             if (settings.enableForNonHumans)
             {
                 Rect nhRect = listing.GetRect(24f);
-                float nhBtnW = 180f; // [变量名冲突修复] btnW -> nhBtnW
+                float nhBtnW = 180f;
                 if (Widgets.ButtonText(new Rect(nhRect.x, nhRect.y, nhBtnW, 24f), "RTDC_SelectNonHumanColor".Translate()))
                 {
                     Find.WindowStack.Add(new ColorPickerWindow(settings.nonHumanDefaultColor, "Non-Human", (c) => settings.nonHumanDefaultColor = c));
@@ -692,6 +708,11 @@ namespace RimTalkDynamicColors
 
                 Widgets.CheckboxLabeled(new Rect(stStyleRect.x, stStyleRect.y, boldSize.x + 30f, 24f), "RTDC_Bold".Translate(), ref settings.selfTalkBold);
                 Widgets.CheckboxLabeled(new Rect(stStyleRect.x + boldSize.x + 40f, stStyleRect.y, italicSize.x + 30f, 24f), "RTDC_SelfTalkItalic".Translate(), ref settings.selfTalkItalic);
+
+                // [新增] 忽略正则输入框
+                listing.Gap(5f);
+                listing.Label("RTDC_IgnoreRegex".Translate());
+                settings.ignoredSelfTalkRegex = listing.TextEntry(settings.ignoredSelfTalkRegex);
             }
 
             listing.CheckboxLabeled("RTDC_EnableRainbow".Translate(), ref settings.enableRainbowEffect, "RTDC_EnableRainbowDesc".Translate());

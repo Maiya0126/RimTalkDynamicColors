@@ -89,4 +89,28 @@
     <Analyzer Include="..\..\..\Games\steamapps\workshop\content\294100\3551203752\1.6\Assemblies\RimTalk.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>:: 设置你的 Mod 目标目录 (注意结尾不要带斜杠)
+set MOD_DIR=D:\games\steamapps\common\Rimworld\Mods\MaiyaMod01 RimTalk DynamicColors 边缘世谭-言出多彩
+
+:: 1. 自动创建目标目录结构
+if not exist "%25MOD_DIR%25\Assemblies" mkdir "%25MOD_DIR%25\Assemblies"
+if not exist "%25MOD_DIR%25\Defs" mkdir "%25MOD_DIR%25\Defs"
+if not exist "%25MOD_DIR%25\Textures" mkdir "%25MOD_DIR%25\Textures"
+if not exist "%25MOD_DIR%25\About" mkdir "%25MOD_DIR%25\About"
+if not exist "%25MOD_DIR%25\Languages" mkdir "%25MOD_DIR%25\Languages"
+
+:: 2. 复制 DLL
+xcopy /Y "$(TargetPath)" "%25MOD_DIR%25\Assemblies\"
+
+:: 3. 复制资源文件夹 (注意：Languages 也要复制)
+if exist "$(ProjectDir)Defs" xcopy /S /Y /I "$(ProjectDir)Defs" "%25MOD_DIR%25\Defs"
+if exist "$(ProjectDir)Textures" xcopy /S /Y /I "$(ProjectDir)Textures" "%25MOD_DIR%25\Textures"
+if exist "$(ProjectDir)About" xcopy /S /Y /I "$(ProjectDir)About" "%25MOD_DIR%25\About"
+if exist "$(ProjectDir)Languages" xcopy /S /Y /I "$(ProjectDir)Languages" "%25MOD_DIR%25\Languages"</PostBuildEvent>
+  </PropertyGroup>
 </Project>

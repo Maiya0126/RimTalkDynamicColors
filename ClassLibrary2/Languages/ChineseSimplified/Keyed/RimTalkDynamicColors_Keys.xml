@@ -100,4 +100,5 @@
   <RTDC_EnableForNonHumans>对非人类生效 (动物/机械体)</RTDC_EnableForNonHumans>
   <RTDC_EnableForNonHumansDesc>如果开启，携带发声道具的动物或机械体说话时，名字也会变色。</RTDC_EnableForNonHumansDesc>
   <RTDC_SelectNonHumanColor>设置非人类默认颜色</RTDC_SelectNonHumanColor>
+  <RTDC_IgnoreRegex>忽略匹配正则 (高级)</RTDC_IgnoreRegex>
 </LanguageData>

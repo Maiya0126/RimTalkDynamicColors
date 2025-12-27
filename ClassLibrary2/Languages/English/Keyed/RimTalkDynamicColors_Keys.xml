@@ -101,5 +101,5 @@
 	<RTDC_EnableForNonHumans>Enable for Non-Humans</RTDC_EnableForNonHumans>
   <RTDC_EnableForNonHumansDesc>Apply color to animals or mechs if they can speak.</RTDC_EnableForNonHumansDesc>
   <RTDC_SelectNonHumanColor>Set Default Non-Human Color</RTDC_SelectNonHumanColor>
-  
+  <RTDC_IgnoreRegex>Ignore Regex Pattern (Advanced)</RTDC_IgnoreRegex>
 </LanguageData>
