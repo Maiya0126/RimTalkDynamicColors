@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>RimTalk DynamicColors 边缘世谭-言出多彩</name>
+  <author>Maiya0126</author>
+  <packageId>Maiya.RimTalkDynamicColors</packageId>
+  
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>Jaxe.Bubbles</li>
+    <li>cj.rimtalk</li>
+  </loadAfter>
+
+  <description>
+[b]RimTalk DynamicColors (言出多彩)[/b]
+
+A tailored enhancement mod for RimTalk and Interaction Bubbles.
+专为 RimTalk 打造的沉浸式色彩增强模组。
+
+[b]✨ All features can be toggled freely in Mod Settings.[/b]
+[b]✨ 所有功能均可在 Mod 设置里自由开关。[/b]
+
+[h1]⚠️ Load Order / 加载顺序[/h1]
+1. Harmony
+2. Interaction Bubbles
+3. RimTalk
+4. [b]RimTalk DynamicColors[/b] (This Mod)
+
+[h1]Features / 功能[/h1]
+[b]1. Dynamic Character Colors (角色专属色)[/b]
+Set custom colors for specific pawns. Supports Ideology "Favorite Color" auto-apply.
+为角色设置专属颜色，支持自动应用文化DLC的“最爱颜色”。
+
+[b]2. Immersive Actions (沉浸式动作)[/b]
+Text inside brackets (), **, [] will be dimmed or italicized to distinguish actions from speech.
+括号内的动作描写会自动变暗或变为斜体。
+
+[b]3. Bubbles Sync (气泡同步)[/b]
+All colors and styles sync perfectly to Interaction Bubbles!
+所有颜色特效完美同步显示在头顶气泡中！
+
+[b]4. History &amp; Export (历史与导出)[/b]
+View chat history in-game and export to TXT or HTML files.
+内置历史记录查看器，支持导出为 TXT 或 HTML（带颜色）文件。
+
+[h1]New Items / 新增物品[/h1]
+Craftable at Crafting Spot:
+[b]🍬 Rainbow Candy:[/b] Makes your speech rainbow-colored! (说话变成动态彩虹色)
+[b]💊 B&amp;W Pill:[/b] Makes speech high-contrast black &amp; white. (说话变成黑白风格)
+[b]🍵 Clear Soup:[/b] Removes color effects. (清除特效)
+
+[h1]FAQ[/h1]
+[b]Error: "Json deserialization failed"?[/b]
+This is caused by the AI model generating bad data, not this mod. Please ignore it.
+这是AI模型偶尔抽风输出错误格式导致的，不是Mod的问题，请直接忽略。
+  </description>
+</ModMetaData>

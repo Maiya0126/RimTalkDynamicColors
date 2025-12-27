@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowCandy.label>彩虹糖</RimTalk_RainbowCandy.label>
+  <RimTalk_RainbowCandy.description>一颗散发着五彩光芒的糖果。据说吃了它的人，说出的话都会变成彩虹色。</RimTalk_RainbowCandy.description>
+
+  <RimTalk_BlackWhitePill.label>黑白药丸</RimTalk_BlackWhitePill.label>
+  <RimTalk_BlackWhitePill.description>一颗半黑半白的神秘药丸。食用后说话会变成黑白相间的诡异风格。</RimTalk_BlackWhitePill.description>
+
+  <RimTalk_ClearSoup.label>环缘水</RimTalk_ClearSoup.label>
+  <RimTalk_ClearSoup.description>一瓶散发着淡淡草药香气的清水。据说喝下它能让人心神宁静，消除一切语言上的幻觉（清除彩虹和黑白状态）。</RimTalk_ClearSoup.description>
+</LanguageData>

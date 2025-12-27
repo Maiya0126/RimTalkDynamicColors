@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RTDC_ModName>RimTalk Dynamic Colors</RTDC_ModName>
+  <RTDC_SettingsTitle>Dynamic Colors - Settings</RTDC_SettingsTitle>
+  <RTDC_BasicSettings>Basic Settings</RTDC_BasicSettings>
+  <RTDC_EnableMod>Enable Mod</RTDC_EnableMod>
+  <RTDC_EnableModDesc>If disabled, all features will stop working.</RTDC_EnableModDesc>
+  
+  <RTDC_ShowHistoryTab>Show Button in Main Tab</RTDC_ShowHistoryTab>
+  <RTDC_ShowHistoryTabDesc>If disabled, you can only open the history window via Mod Settings.</RTDC_ShowHistoryTabDesc>
+
+  <RTDC_EnableRimTalkNameColoring>Enable RimTalk Name Coloring</RTDC_EnableRimTalkNameColoring>
+  <RTDC_EnableRimTalkNameColoringDesc>Colors the small names at the top of the RimTalk window based on rules.</RTDC_EnableRimTalkNameColoringDesc>
+
+  <RTDC_EnableChatColoring>Enable Chat Text Coloring</RTDC_EnableChatColoring>
+  <RTDC_EnableChatColoringDesc>Chat bubbles and log content will be colored.</RTDC_EnableChatColoringDesc>
+  <RTDC_EnableBubblesSync>Sync with Interaction Bubbles</RTDC_EnableBubblesSync>
+  <RTDC_EnableBubblesSyncDesc>If Interaction Bubbles mod is installed, bubbles will also be colored.</RTDC_EnableBubblesSyncDesc>
+  <RTDC_BubblesNotDetected>Bubbles Mod Not Detected</RTDC_BubblesNotDetected>
+
+  <RTDC_ChatHistoryViewer>History Viewer</RTDC_ChatHistoryViewer>
+  <RTDC_HistorySettings>History Settings</RTDC_HistorySettings>
+  <RTDC_HistoryInfo>Note: System keeps max 200 recent logs. Older logs are cleared automatically.</RTDC_HistoryInfo>
+  <RTDC_ChatHistoryEmpty>No records found</RTDC_ChatHistoryEmpty>
+  <RTDC_HistoryTab>RTDC Logs</RTDC_HistoryTab>
+  
+  <RTDC_OpenHistoryWindow>Open History Window</RTDC_OpenHistoryWindow>
+  <RTDC_OpenHistoryWindowDesc>Opens a standalone, resizable window to manage history logs. Reduces settings menu lag.</RTDC_OpenHistoryWindowDesc>
+
+  <RTDC_ColorRules>Color Rules (Target)</RTDC_ColorRules>
+  <RTDC_EnableForPrisoners>Prisoners</RTDC_EnableForPrisoners>
+  <RTDC_EnableForPrisonersDesc>Apply to prisoners.</RTDC_EnableForPrisonersDesc>
+  <RTDC_EnableForSlaves>Slaves</RTDC_EnableForSlaves>
+  <RTDC_EnableForSlavesDesc>Apply to slaves.</RTDC_EnableForSlavesDesc>
+  <RTDC_EnableForGuests>Guests</RTDC_EnableForGuests>
+  <RTDC_EnableForGuestsDesc>Apply to guests.</RTDC_EnableForGuestsDesc>
+  <RTDC_EnableForFriendlies>Allies/Neutrals</RTDC_EnableForFriendlies>
+  <RTDC_EnableForFriendliesDesc>Apply to allied and neutral factions.</RTDC_EnableForFriendliesDesc>
+  <RTDC_EnableForEnemies>Enemies</RTDC_EnableForEnemies>
+  <RTDC_EnableForEnemiesDesc>Apply to hostile units.</RTDC_EnableForEnemiesDesc>
+  <RTDC_UseFactionColor>Use Faction Color</RTDC_UseFactionColor>
+  <RTDC_UseFactionColorDesc>If no custom name color is defined, try to use the pawn's faction color.</RTDC_UseFactionColorDesc>
+  <RTDC_AutoFavColor>Auto-Use "Favorite Color"</RTDC_AutoFavColor>
+  <RTDC_AutoFavColorDesc>If Biotech DLC is active, try to use the favorite color from the pawn's genes.</RTDC_AutoFavColorDesc>
+  <RTDC_AutoApplyBold>  ↳ Auto Bold</RTDC_AutoApplyBold>
+  <RTDC_AutoApplyBoldDesc>Whether automatically fetched colors should be bold by default.</RTDC_AutoApplyBoldDesc>
+
+  <RTDC_StyleSettings>Style Effects</RTDC_StyleSettings>
+  <RTDC_EnableSelfTalkColor>Action/Thought Coloring</RTDC_EnableSelfTalkColor>
+  <RTDC_EnableSelfTalkColorDesc>Content wrapped in brackets ()（）** 【】 is treated as action or thought.</RTDC_EnableSelfTalkColorDesc>
+  <RTDC_SelectSelfTalkColor>Set Action/Thought Color</RTDC_SelectSelfTalkColor>
+  <RTDC_SelfTalkItalic>Italic</RTDC_SelfTalkItalic>
+  <RTDC_SelfTalkItalicDesc>Display content in italics.</RTDC_SelfTalkItalicDesc>
+  <RTDC_EnableSelfTalkDimming>Dim Color</RTDC_EnableSelfTalkDimming>
+  <RTDC_EnableSelfTalkDimmingDesc>Make color slightly transparent.</RTDC_EnableSelfTalkDimmingDesc>
+  <RTDC_EnableRainbow>Enable Rainbow Potion Effect</RTDC_EnableRainbow>
+  <RTDC_EnableRainbowDesc>Speaking becomes rainbow-colored after drinking a specific potion.</RTDC_EnableRainbowDesc>
+  <RTDC_EnableBW>Enable B&W Potion Effect</RTDC_EnableBW>
+  <RTDC_EnableBWDesc>Speaking becomes black and white after drinking a specific potion.</RTDC_EnableBWDesc>
+
+  <RTDC_DataManage>Data Management</RTDC_DataManage>
+  <RTDC_ManageNames>1. Custom Name Colors</RTDC_ManageNames>
+  <RTDC_ManageNamesDesc>Enter a name (e.g., Rat) and click Add. Highest priority.</RTDC_ManageNamesDesc>
+  <RTDC_ManageKeywords>2. Custom Keyword Colors</RTDC_ManageKeywords>
+  <RTDC_ManageKeywordsDesc>These words will automatically be colored when they appear in dialogue.</RTDC_ManageKeywordsDesc>
+  <RTDC_Add>Add</RTDC_Add>
+  <RTDC_ImportColonists>Import Colonists</RTDC_ImportColonists>
+  <RTDC_ClearNames>Clear Names</RTDC_ClearNames>
+  <RTDC_ClearAll>Clear All Data</RTDC_ClearAll>
+  <RTDC_Cleared>Data Cleared</RTDC_Cleared>
+  <RTDC_ImportDone>Successfully imported colonists count</RTDC_ImportDone>
+  <RTDC_Delete>Delete</RTDC_Delete>
+  <RTDC_Bold>Bold</RTDC_Bold>
+  <RTDC_SelectColor>Select Color</RTDC_SelectColor>
+  <RTDC_Preview>Preview</RTDC_Preview>
+  <RTDC_Alpha>Alpha</RTDC_Alpha>
+  <RTDC_Reset>Reset</RTDC_Reset>
+
+  <RTDC_ExportPathSetting>Export Path Settings</RTDC_ExportPathSetting>
+  <RTDC_SetPath>Set Path</RTDC_SetPath>
+  <RTDC_PastePath>Paste Path</RTDC_PastePath>
+  <RTDC_OpenFolder>Open Folder</RTDC_OpenFolder>
+  <RTDC_ResetPath>Default</RTDC_ResetPath>
+  <RTDC_CurrentPathLabel>Current:</RTDC_CurrentPathLabel>
+  <RTDC_PathInvalid>Invalid path!</RTDC_PathInvalid>
+
+  <RTDC_LogTools>Log Tools</RTDC_LogTools>
+  <RTDC_CopyPlain>Copy (Plain)</RTDC_CopyPlain>
+  <RTDC_CopyRich>Copy (Rich)</RTDC_CopyRich>
+  <RTDC_ExportTxt>Export TXT</RTDC_ExportTxt>
+  <RTDC_ExportHtml>Export HTML</RTDC_ExportHtml>
+  <RTDC_Copied>Copied to clipboard</RTDC_Copied>
+  <RTDC_NoLogFound>No logs found to export</RTDC_NoLogFound>
+  <RTDC_ExportHeader>RimTalk Chat Log Export</RTDC_ExportHeader>
+  <RTDC_ExportSuccess>Successfully exported to: {0}</RTDC_ExportSuccess>
+  <RTDC_DrinkSoup>drank a mysterious soup and feels their way of speaking has changed!</RTDC_DrinkSoup>
+  
+  <RTDC_AutoExportHistory>Auto-Archive at 200 Logs</RTDC_AutoExportHistory>
+  <RTDC_AutoExportHistoryDesc>Automatically save as HTML and clear the log when the limit (200 lines) is reached. If disabled, logs are simply cleared without saving.</RTDC_AutoExportHistoryDesc>
+  <RTDC_AutoExportMsg>[RTDC] History full, auto-archived to: {0}</RTDC_AutoExportMsg>
+	<RTDC_EnableForNonHumans>Enable for Non-Humans</RTDC_EnableForNonHumans>
+  <RTDC_EnableForNonHumansDesc>Apply color to animals or mechs if they can speak.</RTDC_EnableForNonHumansDesc>
+  <RTDC_SelectNonHumanColor>Set Default Non-Human Color</RTDC_SelectNonHumanColor>
+  
+</LanguageData>

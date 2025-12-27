@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <MainButtonDef>
+    <defName>RTDC_HistoryTab</defName>
+    <label>言出多彩</label> 
+    <description>左键：查看历史记录\n右键：打开 Mod 设置</description>
+    <tabWindowClass>RimTalkDynamicColors.RimTalkHistoryWindow</tabWindowClass>
+    <workerClass>RimTalkDynamicColors.MainButtonWorker_RimTalkHistory</workerClass>
+    <order>79</order>
+	<minimized>True</minimized>
+    <iconPath>UI/Icons/RTDC_Icon</iconPath> 
+  </MainButtonDef>
+</Defs>

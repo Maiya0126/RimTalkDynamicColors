@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowCandy.label>Rainbow Candy</RimTalk_RainbowCandy.label>
+  <RimTalk_RainbowCandy.description>A glowing candy that radiates five colors. It is said that anyone who eats it will speak in rainbows.</RimTalk_RainbowCandy.description>
+
+  <RimTalk_BlackWhitePill.label>B&amp;W Pill</RimTalk_BlackWhitePill.label>
+  <RimTalk_BlackWhitePill.description>A mysterious pill, half black and half white. Consuming it turns your speech into a spooky noir style.</RimTalk_BlackWhitePill.description>
+
+  <RimTalk_ClearSoup.label>Clear Soup</RimTalk_ClearSoup.label>
+  <RimTalk_ClearSoup.description>A bottle of clear water with a faint herbal scent. Drinking it calms the mind and removes all speech hallucinations.</RimTalk_ClearSoup.description>
+</LanguageData>

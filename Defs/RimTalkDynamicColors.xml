@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <HediffDef>
+    <defName>RimTalk_RainbowStatus</defName>
+    <label>彩虹之语</label>
+    <description>吃了神奇的彩虹糖，每一句话都变成了流动的七彩色！</description>
+    <hediffClass>HediffWithComps</hediffClass>
+    <defaultLabelColor>(0.8, 0.4, 0.8)</defaultLabelColor>
+    <isBad>false</isBad>
+    <comps>
+      <li Class="HediffCompProperties_Disappears">
+        <disappearsAfterTicks>60000~60000</disappearsAfterTicks>
+        <showRemainingTime>true</showRemainingTime>
+      </li>
+    </comps>
+  </HediffDef>
+
+  <ThingDef ParentName="MakeableDrugBase">
+    <defName>RimTalk_RainbowCandy</defName>
+    <label>彩虹糖</label>
+    <description>一颗散发着五彩光芒的糖果。据说吃了它的人，说出的话都会变成彩虹色。</description>
+    <graphicData>
+      <texPath>RimTalk/RainbowCandy</texPath>
+      <graphicClass>Graphic_Single</graphicClass> <color>(255, 100, 255)</color> </graphicData>
+    <rotatable>false</rotatable>
+    <statBases>
+      <WorkToMake>300</WorkToMake>
+      <MarketValue>15</MarketValue>
+      <Mass>0.05</Mass>
+    </statBases>
+    <techLevel>Neolithic</techLevel>
+    <ingestible>
+      <foodType>Processed</foodType>
+      <joyKind>Chemical</joyKind>
+      <joy>0.5</joy>
+      <drugCategory>Social</drugCategory>
+      <baseIngestTicks>100</baseIngestTicks>
+      <outcomeDoers>
+        <li Class="IngestionOutcomeDoer_GiveHediff">
+          <hediffDef>RimTalk_RainbowStatus</hediffDef>
+          <severity>1.0</severity>
+        </li>
+      </outcomeDoers>
+    </ingestible>
+    
+    <comps>
+      <li Class="CompProperties_Drug">
+        <listOrder>1000</listOrder>
+        <addictiveness>0</addictiveness>
+      </li>
+    </comps>
+
+    <recipeMaker>
+      <workSpeedStat>DrugSynthesisSpeed</workSpeedStat>
+      <workSkill>Intellectual</workSkill>
+      <effectWorking>Cook</effectWorking>
+      <soundWorking>Recipe_CookMeal</soundWorking>
+      <recipeUsers>
+        <li>CraftingSpot</li> <li>DrugLab</li>
+        <li>Campfire</li>
+        <li>FueledStove</li>
+        <li>ElectricStove</li>
+      </recipeUsers>
+    </recipeMaker>
+    <costList>
+      <MedicineHerbal>1</MedicineHerbal> </costList>
+  </ThingDef>
+
+
+  <HediffDef>
+    <defName>RimTalk_BlackWhiteStatus</defName>
+    <label>黑白默剧</label>
+    <description>吃了神秘的黑白药丸，言语变得像钢琴键一样黑白分明。</description>
+    <hediffClass>HediffWithComps</hediffClass>
+    <defaultLabelColor>(0.5, 0.5, 0.5)</defaultLabelColor>
+    <isBad>false</isBad>
+    <comps>
+      <li Class="HediffCompProperties_Disappears">
+        <disappearsAfterTicks>60000~60000</disappearsAfterTicks>
+        <showRemainingTime>true</showRemainingTime>
+      </li>
+    </comps>
+  </HediffDef>
+
+  <ThingDef ParentName="MakeableDrugBase">
+    <defName>RimTalk_BlackWhitePill</defName>
+    <label>黑白药丸</label>
+    <description>一颗半黑半白的神秘药丸。食用后说话会变成黑白相间的诡异风格。</description>
+    <graphicData>
+      <texPath>RimTalk/BlackWhitePill</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <color>(200, 200, 200)</color>
+    </graphicData>
+    <rotatable>false</rotatable>
+    <statBases>
+      <WorkToMake>300</WorkToMake>
+      <MarketValue>15</MarketValue>
+      <Mass>0.05</Mass>
+    </statBases>
+    <techLevel>Neolithic</techLevel>
+    <ingestible>
+      <foodType>Processed</foodType>
+      <joyKind>Chemical</joyKind>
+      <joy>0.5</joy>
+      <drugCategory>Social</drugCategory>
+      <baseIngestTicks>100</baseIngestTicks>
+      <outcomeDoers>
+        <li Class="IngestionOutcomeDoer_GiveHediff">
+          <hediffDef>RimTalk_BlackWhiteStatus</hediffDef>
+          <severity>1.0</severity>
+        </li>
+      </outcomeDoers>
+    </ingestible>
+
+    <comps>
+      <li Class="CompProperties_Drug">
+        <listOrder>1001</listOrder>
+        <addictiveness>0</addictiveness>
+      </li>
+    </comps>
+
+    <recipeMaker>
+      <workSpeedStat>DrugSynthesisSpeed</workSpeedStat>
+      <workSkill>Intellectual</workSkill>
+      <effectWorking>Cook</effectWorking>
+      <soundWorking>Recipe_CookMeal</soundWorking>
+      <recipeUsers>
+        <li>CraftingSpot</li>
+        <li>DrugLab</li>
+        <li>Campfire</li>
+        <li>FueledStove</li>
+        <li>ElectricStove</li>
+      </recipeUsers>
+    </recipeMaker>
+    <costList>
+      <MedicineHerbal>1</MedicineHerbal>
+    </costList>
+  </ThingDef>
+
+
+  <ThingDef ParentName="MakeableDrugBase">
+    <defName>RimTalk_ClearSoup</defName>
+    <label>环缘水</label>
+    <description>一瓶散发着淡淡草药香气的清水。据说喝下它能让人心神宁静，消除一切语言上的幻觉（清除彩虹和黑白状态）。</description>
+    <graphicData>
+      <texPath>RimTalk/ClearSoup</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <rotatable>false</rotatable>
+    <statBases>
+      <WorkToMake>400</WorkToMake>
+      <MarketValue>20</MarketValue>
+      <Mass>0.05</Mass>
+    </statBases>
+    <techLevel>Neolithic</techLevel>
+    <ingestible>
+      <foodType>Fluid</foodType>
+      <joyKind>Chemical</joyKind>
+      <joy>0.2</joy>
+      <drugCategory>Social</drugCategory>
+      <baseIngestTicks>200</baseIngestTicks>
+      <ingestSound>Ingest_Drink</ingestSound>
+      <ingestHoldOffsetStanding>
+        <northDefault>
+          <offset>(0.18,0,0)</offset>
+        </northDefault>
+      </ingestHoldOffsetStanding>
+      <outcomeDoers>
+        <li Class="RimTalkDynamicColors.IngestionOutcomeDoer_RemoveRimTalkEffects" />
+      </outcomeDoers>
+    </ingestible>
+
+    <comps>
+      <li Class="CompProperties_Drug">
+        <listOrder>1002</listOrder>
+        <addictiveness>0</addictiveness>
+      </li>
+    </comps>
+
+    <recipeMaker>
+      <workSpeedStat>DrugSynthesisSpeed</workSpeedStat>
+      <workSkill>Intellectual</workSkill>
+      <effectWorking>Cook</effectWorking>
+      <soundWorking>Recipe_CookMeal</soundWorking>
+      <recipeUsers>
+        <li>CraftingSpot</li>
+        <li>Campfire</li>
+        <li>FueledStove</li>
+        <li>ElectricStove</li>
+      </recipeUsers>
+    </recipeMaker>
+    <costList>
+      <MedicineHerbal>1</MedicineHerbal>
+    </costList>
+  </ThingDef>
+
+</Defs>
