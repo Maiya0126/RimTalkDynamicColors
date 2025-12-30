@@ -1,110 +1,84 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <LanguageData>
-	<RTDC_ModName>言出多彩 (RimTalk Dynamic Colors)</RTDC_ModName>
-	<RTDC_SettingsTitle>言出多彩 - 设置</RTDC_SettingsTitle>
+	<RTDC_ModName>RimTalk DynamicColors 边缘世谭-言出多彩</RTDC_ModName>
+	<RTDC_SettingsTitle>RimTalk DynamicColors 边缘世谭-言出多彩 设置</RTDC_SettingsTitle>
+
+	<RTDC_HistoryTab>言出多彩记录窗</RTDC_HistoryTab>
+	<RTDC_ChatHistoryViewer>聊天记录查看器</RTDC_ChatHistoryViewer>
+
+	<RTDC_BufferStatus>缓存状态: {0}/{1}</RTDC_BufferStatus>
+	<RTDC_QuickAutoExport>满额自动导出</RTDC_QuickAutoExport>
+	<RTDC_QuickAutoExportTip>启用后，当记录达到200条上限时，会自动导出HTML文件到本地并清空缓存。\n若关闭，达到上限时将直接清空而不保存。</RTDC_QuickAutoExportTip>
 
 	<RTDC_BasicSettings>基础设置</RTDC_BasicSettings>
-	<RTDC_EnableMod>启用模组</RTDC_EnableMod>
-	<RTDC_EnableModDesc>如果关闭，所有功能将停止工作。</RTDC_EnableModDesc>
-
-	<RTDC_ShowHistoryTab>在底部菜单栏显示按钮</RTDC_ShowHistoryTab>
-	<RTDC_ShowHistoryTabDesc>如果关闭，你需要通过 Mod 设置界面来打开历史记录窗口。</RTDC_ShowHistoryTabDesc>
-
-	<RTDC_EnableRimTalkNameColoring>启用 RimTalk 名字染色</RTDC_EnableRimTalkNameColoring>
-	<RTDC_EnableRimTalkNameColoringDesc>让 RimTalk 顶部的小名字也根据规则变色。注意：为了防止排版错乱，名字不会加粗。</RTDC_EnableRimTalkNameColoringDesc>
-
-	<RTDC_EnableChatColoring>启用对话文本染色</RTDC_EnableChatColoring>
-	<RTDC_EnableChatColoringDesc>聊天气泡和记录中的对话内容将变色。</RTDC_EnableChatColoringDesc>
-
-	<RTDC_EnableBubblesSync>同步 Interaction Bubbles</RTDC_EnableBubblesSync>
-	<RTDC_EnableBubblesSyncDesc>如果安装了 Interaction Bubbles，气泡也会变色。</RTDC_EnableBubblesSyncDesc>
-	<RTDC_BubblesNotDetected>未检测到 Bubbles 模组</RTDC_BubblesNotDetected>
-
 	<RTDC_HistorySettings>历史记录设置</RTDC_HistorySettings>
-	<RTDC_AutoExportHistory>满200条自动归档</RTDC_AutoExportHistory>
-	<RTDC_AutoExportHistoryDesc>当记录达到上限(200条)时，自动保存为HTML文件再清空。若关闭此项，达到上限将直接清空。</RTDC_AutoExportHistoryDesc>
-	<RTDC_OpenHistoryWindow>打开历史记录窗口 (独立界面)</RTDC_OpenHistoryWindow>
-	<RTDC_OpenHistoryWindowDesc>在一个可拖动、可调整大小的独立窗口中查看和管理历史记录。这能显著提高设置界面的流畅度。</RTDC_OpenHistoryWindowDesc>
-
-	<RTDC_ColorRules>颜色规则 (生效对象)</RTDC_ColorRules>
+	<RTDC_EnableMod>启用 Mod 功能</RTDC_EnableMod>
+	<RTDC_EnableModDesc>如果关闭，所有文本染色和替换功能将停止。</RTDC_EnableModDesc>
+	<RTDC_ShowHistoryTab>显示底部历史记录标签页</RTDC_ShowHistoryTab>
+	<RTDC_ShowHistoryTabDesc>在屏幕下方的主按钮栏显示"Chat Log"标签。</RTDC_ShowHistoryTabDesc>
+	<RTDC_AutoExportHistory>历史记录已满自动导出</RTDC_AutoExportHistory>
+	<RTDC_AutoExportHistoryDesc>当记录达到上限(200条)时，自动保存HTML文件到指定目录。</RTDC_AutoExportHistoryDesc>
+	<RTDC_EnableBubblesSync>同步气泡 Mod (Bubbles) 颜色</RTDC_EnableBubblesSync>
+	<RTDC_EnableBubblesSyncDesc>尝试对 Interaction Bubbles 产生的气泡进行染色。</RTDC_EnableBubblesSyncDesc>
+	<RTDC_BubblesNotDetected>未检测到 Bubbles Mod</RTDC_BubblesNotDetected>
+	<RTDC_EnableRimTalkNameColoring>RimTalk 名字染色</RTDC_EnableRimTalkNameColoring>
+	<RTDC_EnableRimTalkNameColoringDesc>将 RimTalk 聊天框左侧的名字进行染色。</RTDC_EnableRimTalkNameColoringDesc>
+	<RTDC_EnableChatColoring>RimTalk 内容染色</RTDC_EnableChatColoring>
+	<RTDC_EnableChatColoringDesc>将聊天内容中的关键词、动作描述进行染色。</RTDC_EnableChatColoringDesc>
+	<RTDC_OpenHistoryWindow>打开独立历史记录窗口</RTDC_OpenHistoryWindow>
+	<RTDC_OpenHistoryWindowDesc>打开一个可拖动的窗口来查看聊天记录。</RTDC_OpenHistoryWindowDesc>
+	<RTDC_ColorRules>色彩规则</RTDC_ColorRules>
 	<RTDC_EnableForPrisoners>囚犯</RTDC_EnableForPrisoners>
-	<RTDC_EnableForPrisonersDesc>是否对囚犯生效</RTDC_EnableForPrisonersDesc>
 	<RTDC_EnableForSlaves>奴隶</RTDC_EnableForSlaves>
-	<RTDC_EnableForSlavesDesc>是否对奴隶生效</RTDC_EnableForSlavesDesc>
 	<RTDC_EnableForGuests>访客</RTDC_EnableForGuests>
-	<RTDC_EnableForGuestsDesc>是否对访客生效</RTDC_EnableForGuestsDesc>
-	<RTDC_EnableForFriendlies>盟友/中立</RTDC_EnableForFriendlies>
-	<RTDC_EnableForFriendliesDesc>是否对盟友和中立派系生效</RTDC_EnableForFriendliesDesc>
+	<RTDC_EnableForFriendlies>盟友</RTDC_EnableForFriendlies>
 	<RTDC_EnableForEnemies>敌人</RTDC_EnableForEnemies>
-	<RTDC_EnableForEnemiesDesc>是否对敌对单位生效</RTDC_EnableForEnemiesDesc>
-
-	<RTDC_EnableForNonHumans>对非人类生效 (动物/机械体)</RTDC_EnableForNonHumans>
-	<RTDC_EnableForNonHumansDesc>如果开启，携带发声道具的动物或机械体说话时，名字也会变色。</RTDC_EnableForNonHumansDesc>
-	<RTDC_SelectNonHumanColor>设置非人类默认颜色</RTDC_SelectNonHumanColor>
-
+	<RTDC_EnableForNonHumans>非人类 (动物/机械)</RTDC_EnableForNonHumans>
+	<RTDC_SelectNonHumanColor>非人类颜色</RTDC_SelectNonHumanColor>
 	<RTDC_UseFactionColor>使用派系颜色</RTDC_UseFactionColor>
-	<RTDC_UseFactionColorDesc>如果没有自定义名字，则尝试使用该小人所属派系的代表色。</RTDC_UseFactionColorDesc>
-	<RTDC_AutoFavColor>自动使用“最爱颜色”</RTDC_AutoFavColor>
-	<RTDC_AutoFavColorDesc>如果生物技术DLC启用，尝试使用小人基因里的最爱颜色。</RTDC_AutoFavColorDesc>
-	<RTDC_AutoApplyBold>  ↳ 自动加粗</RTDC_AutoApplyBold>
-	<RTDC_AutoApplyBoldDesc>自动获取的颜色是否默认加粗。</RTDC_AutoApplyBoldDesc>
-
-	<RTDC_StyleSettings>样式特效</RTDC_StyleSettings>
-	<RTDC_EnableSelfTalkColor>启用动作/心理染色</RTDC_EnableSelfTalkColor>
-	<RTDC_EnableSelfTalkColorDesc>将括号 ()（）** 【】 包裹的内容视为动作或心理活动，进行染色。</RTDC_EnableSelfTalkColorDesc>
-	<RTDC_SelectSelfTalkColor>设置动作/心理颜色</RTDC_SelectSelfTalkColor>
+	<RTDC_UseFactionColorDesc>优先使用该角色所属派系的代表色。</RTDC_UseFactionColorDesc>
+	<RTDC_AutoFavColor>使用最爱颜色</RTDC_AutoFavColor>
+	<RTDC_AutoFavColorDesc>如果角色设定了最爱颜色(DLC)，优先使用它。</RTDC_AutoFavColorDesc>
+	<RTDC_AutoApplyBold>同时应用加粗</RTDC_AutoApplyBold>
+	<RTDC_StyleSettings>样式设置</RTDC_StyleSettings>
+	<RTDC_EnableSelfTalkColor>动作/心理活动染色 (*...*)</RTDC_EnableSelfTalkColor>
+	<RTDC_SelectSelfTalkColor>选择动作颜色</RTDC_SelectSelfTalkColor>
+	<RTDC_Bold>加粗</RTDC_Bold>
 	<RTDC_SelfTalkItalic>斜体</RTDC_SelfTalkItalic>
-	<RTDC_SelfTalkItalicDesc>内容使用斜体显示。</RTDC_SelfTalkItalicDesc>
-	<RTDC_EnableSelfTalkDimming>颜色减淡</RTDC_EnableSelfTalkDimming>
-	<RTDC_EnableSelfTalkDimmingDesc>让颜色稍微透明一点。</RTDC_EnableSelfTalkDimmingDesc>
-	<RTDC_IgnoreRegex>忽略匹配正则 (高级)</RTDC_IgnoreRegex>
-
-	<RTDC_EnableRainbow>启用彩虹药水特效</RTDC_EnableRainbow>
-	<RTDC_EnableRainbowDesc>喝了特定药水后说话变成彩虹色。</RTDC_EnableRainbowDesc>
-	<RTDC_EnableBW>启用黑白药水特效</RTDC_EnableBW>
-	<RTDC_EnableBWDesc>喝了特定药水后说话变成黑白色。</RTDC_EnableBWDesc>
-
-	<RTDC_DataManage>自定义数据管理</RTDC_DataManage>
-	<RTDC_ManageNames>1. 自定义名字颜色</RTDC_ManageNames>
-	<RTDC_ManageNamesDesc>输入名字（如 Rat），点击添加。优先度最高。</RTDC_ManageNamesDesc>
-	<RTDC_ManageKeywords>2. 自定义关键词颜色</RTDC_ManageKeywords>
-	<RTDC_ManageKeywordsDesc>对话中出现这些词时，会自动变色。</RTDC_ManageKeywordsDesc>
+	<RTDC_EnableKaomojiColoring>颜文字染色 (>_&lt;)</RTDC_EnableKaomojiColoring>
+	<RTDC_SelectKaomojiColor>选择颜文字颜色</RTDC_SelectKaomojiColor>
+	<RTDC_EnableRainbow>彩虹文字特效</RTDC_EnableRainbow>
+	<RTDC_EnableRainbowDesc>启用“喝了彩虹汤”后的动态彩虹字效果。</RTDC_EnableRainbowDesc>
+	<RTDC_EnableBW>黑白文字特效</RTDC_EnableBW>
+	<RTDC_EnableBWDesc>启用“喝了墨水汤”后的黑白字效果。</RTDC_EnableBWDesc>
+	<RTDC_DrinkSoup>喝了解药汤，文字恢复正常了。</RTDC_DrinkSoup>
+	<RTDC_DataManage>数据管理</RTDC_DataManage>
+	<RTDC_ManageNames>自定义名字颜色</RTDC_ManageNames>
+	<RTDC_ManageKeywords>自定义关键词颜色</RTDC_ManageKeywords>
 	<RTDC_Add>添加</RTDC_Add>
-	<RTDC_ImportColonists>一键导入殖民者</RTDC_ImportColonists>
-	<RTDC_ImportDone>成功导入殖民者数量</RTDC_ImportDone>
+	<RTDC_ImportColonists>导入当前殖民者</RTDC_ImportColonists>
 	<RTDC_ClearNames>清空名字</RTDC_ClearNames>
 	<RTDC_ClearAll>清空所有数据</RTDC_ClearAll>
 	<RTDC_Cleared>数据已清空</RTDC_Cleared>
-
-	<RTDC_Delete>删除</RTDC_Delete>
-	<RTDC_Bold>加粗</RTDC_Bold>
-	<RTDC_SelectColor>选择颜色</RTDC_SelectColor>
-	<RTDC_Preview>预览效果</RTDC_Preview>
-	<RTDC_Alpha>透明度 (Alpha)</RTDC_Alpha>
-	<RTDC_Reset>重置</RTDC_Reset>
-
-	<RTDC_HistoryTab>言出多彩记录</RTDC_HistoryTab>
-	<RTDC_ChatHistoryViewer>历史记录回看</RTDC_ChatHistoryViewer>
-	<RTDC_HistoryInfo>注意：系统最多保留 200 条最新记录。超过限制后，旧记录将被自动清除。</RTDC_HistoryInfo>
-	<RTDC_ChatHistoryEmpty>暂无记录</RTDC_ChatHistoryEmpty>
-
-	<RTDC_ExportPathSetting>导出位置设置</RTDC_ExportPathSetting>
-	<RTDC_SetPath>设置/修改路径</RTDC_SetPath>
-	<RTDC_PastePath>粘贴剪贴板路径</RTDC_PastePath>
+	<RTDC_ImportDone>导入完成</RTDC_ImportDone>
+	<RTDC_HistoryInfo>这里显示最近的对话记录。</RTDC_HistoryInfo>
+	<RTDC_ExportPathSetting>导出路径设置</RTDC_ExportPathSetting>
+	<RTDC_SetPath>设置路径</RTDC_SetPath>
 	<RTDC_OpenFolder>打开文件夹</RTDC_OpenFolder>
-	<RTDC_ResetPath>恢复默认</RTDC_ResetPath>
-	<RTDC_CurrentPathLabel>当前路径：</RTDC_CurrentPathLabel>
-	<RTDC_PathInvalid>无效路径！请确保路径存在且格式正确。</RTDC_PathInvalid>
-
+	<RTDC_ResetPath>重置默认</RTDC_ResetPath>
+	<RTDC_CurrentPathLabel>当前:</RTDC_CurrentPathLabel>
+	<RTDC_PathInvalid>路径无效或不存在。</RTDC_PathInvalid>
 	<RTDC_LogTools>记录工具</RTDC_LogTools>
 	<RTDC_CopyPlain>复制(纯文本)</RTDC_CopyPlain>
 	<RTDC_CopyRich>复制(带格式)</RTDC_CopyRich>
 	<RTDC_ExportTxt>导出 TXT</RTDC_ExportTxt>
 	<RTDC_ExportHtml>导出 HTML</RTDC_ExportHtml>
-	<RTDC_Copied>已复制到剪贴板</RTDC_Copied>
-	<RTDC_NoLogFound>没有可导出的记录</RTDC_NoLogFound>
-	<RTDC_ExportHeader>RimTalk 聊天记录导出</RTDC_ExportHeader>
-	<RTDC_ExportSuccess>成功导出至: {0}</RTDC_ExportSuccess>
-	<RTDC_AutoExportMsg>[言出多彩] 历史记录已满，已自动归档为: {0}</RTDC_AutoExportMsg>
-	<RTDC_DrinkSoup>喝下了神奇的汤，感觉说话方式变了！</RTDC_DrinkSoup>
+	<RTDC_Copied>已复制到剪贴板。</RTDC_Copied>
+	<RTDC_NoLogFound>暂无记录可导出。</RTDC_NoLogFound>
+	<RTDC_AutoExportMsg>记录已满，自动导出至: {0}</RTDC_AutoExportMsg>
+	<RTDC_ExportSuccess>导出成功: {0}</RTDC_ExportSuccess>
+	<RTDC_SelectColor>选择颜色</RTDC_SelectColor>
+	<RTDC_Alpha>透明度</RTDC_Alpha>
+	<RTDC_Preview>预览 Preview</RTDC_Preview>
+	<RTDC_Reset>重置</RTDC_Reset>
 </LanguageData>
