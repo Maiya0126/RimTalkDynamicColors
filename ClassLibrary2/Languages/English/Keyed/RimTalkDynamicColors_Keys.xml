@@ -18,6 +18,7 @@
 	<RTDC_ShowHistoryTabDesc>Show 'Chat Log' tab in the main button bar.</RTDC_ShowHistoryTabDesc>
 	<RTDC_AutoExportHistory>Auto Export History</RTDC_AutoExportHistory>
 	<RTDC_AutoExportHistoryDesc>Automatically export log to HTML when limit (200) is reached.</RTDC_AutoExportHistoryDesc>
+	<RTDC_ShowAvatarInHistory>Show Avatar in History</RTDC_ShowAvatarInHistory>
 	<RTDC_EnableBubblesSync>Sync Bubbles Color</RTDC_EnableBubblesSync>
 	<RTDC_EnableBubblesSyncDesc>Apply colors to Interaction Bubbles mod.</RTDC_EnableBubblesSyncDesc>
 	<RTDC_BubblesNotDetected>Bubbles Mod Not Detected</RTDC_BubblesNotDetected>

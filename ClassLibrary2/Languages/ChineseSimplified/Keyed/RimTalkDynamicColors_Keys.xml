@@ -18,6 +18,7 @@
 	<RTDC_ShowHistoryTabDesc>在屏幕下方的主按钮栏显示"Chat Log"标签。</RTDC_ShowHistoryTabDesc>
 	<RTDC_AutoExportHistory>历史记录已满自动导出</RTDC_AutoExportHistory>
 	<RTDC_AutoExportHistoryDesc>当记录达到上限(200条)时，自动保存HTML文件到指定目录。</RTDC_AutoExportHistoryDesc>
+	<RTDC_ShowAvatarInHistory>在记录窗显示角色头像</RTDC_ShowAvatarInHistory>
 	<RTDC_EnableBubblesSync>同步气泡 Mod (Bubbles) 颜色</RTDC_EnableBubblesSync>
 	<RTDC_EnableBubblesSyncDesc>尝试对 Interaction Bubbles 产生的气泡进行染色。</RTDC_EnableBubblesSyncDesc>
 	<RTDC_BubblesNotDetected>未检测到 Bubbles Mod</RTDC_BubblesNotDetected>

@@ -22,7 +22,7 @@
     <description>一颗散发着五彩光芒的糖果。据说吃了它的人，说出的话都会变成彩虹色。</description>
     <graphicData>
       <texPath>RimTalk/RainbowCandy</texPath>
-      <graphicClass>Graphic_Single</graphicClass> <color>(255, 100, 255)</color> </graphicData>
+      <graphicClass>Graphic_Single</graphicClass>  </graphicData>
     <rotatable>false</rotatable>
     <statBases>
       <WorkToMake>300</WorkToMake>
@@ -90,7 +90,7 @@
     <graphicData>
       <texPath>RimTalk/BlackWhitePill</texPath>
       <graphicClass>Graphic_Single</graphicClass>
-      <color>(200, 200, 200)</color>
+
     </graphicData>
     <rotatable>false</rotatable>
     <statBases>

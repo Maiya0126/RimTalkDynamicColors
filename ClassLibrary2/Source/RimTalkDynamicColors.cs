@@ -41,6 +41,9 @@ namespace RimTalkDynamicColors
         public Color NameColor;
         public bool NameBold;
         public object SourceObject;
+
+        // [新增] 记录讲话的Pawn实体，用于绘制头像
+        public Pawn SpeakerPawn;
     }
 
     // ==========================================
@@ -53,6 +56,9 @@ namespace RimTalkDynamicColors
 
         public bool isGlobalEnabled = true;
         public bool showHistoryTab = true;
+
+        // [新增] 是否在历史记录窗口显示头像
+        public bool showAvatarInHistory = true;
 
         public bool enableRimTalkNameColoring = true;
         public bool enableChatColoring = true;
@@ -199,6 +205,7 @@ namespace RimTalkDynamicColors
 
             Scribe_Values.Look(ref isGlobalEnabled, "isGlobalEnabled", true);
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
+            Scribe_Values.Look(ref showAvatarInHistory, "showAvatarInHistory", true); // 保存头像开关
             Scribe_Values.Look(ref enableRimTalkNameColoring, "enableRimTalkNameColoring", true);
             Scribe_Values.Look(ref enableChatColoring, "enableChatColoring", true);
             Scribe_Values.Look(ref enableKeywordColoring, "enableKeywordColoring", true);
@@ -400,33 +407,7 @@ namespace RimTalkDynamicColors
 
             if (settings.enableSelfTalkColor)
             {
-                string pattern = @"(\(.*?\)|（.*?）|\*.*?\*|【.*?】)";
-                result = Regex.Replace(result, pattern, (Match m) =>
-                {
-                    bool isKaomoji = IsLikelyKaomoji(m.Value);
-
-                    if (isKaomoji)
-                    {
-                        if (settings.enableKaomojiColoring)
-                        {
-                            Color finalColor = settings.kaomojiColor;
-                            string hex = ColorUtility.ToHtmlStringRGBA(finalColor);
-                            string styledPart = $"<color=#{hex}>{m.Value}</color>";
-                            if (settings.kaomojiBold) styledPart = $"<b>{styledPart}</b>";
-                            return styledPart;
-                        }
-                        return m.Value;
-                    }
-                    else
-                    {
-                        Color finalColor = settings.selfTalkColor;
-                        string hex = ColorUtility.ToHtmlStringRGBA(finalColor);
-                        string styledPart = $"<color=#{hex}>{m.Value}</color>";
-                        if (settings.selfTalkItalic) styledPart = $"<i>{styledPart}</i>";
-                        if (settings.selfTalkBold) styledPart = $"<b>{styledPart}</b>";
-                        return styledPart;
-                    }
-                });
+                result = ColorizeSelfTalkWithNesting(result);
             }
 
             Regex cachedRegex = settings.GetCachedRegex();
@@ -447,6 +428,89 @@ namespace RimTalkDynamicColors
                 });
             }
             return result;
+        }
+
+        private static string ColorizeSelfTalkWithNesting(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            StringBuilder sb = new StringBuilder();
+            int i = 0;
+
+            while (i < input.Length)
+            {
+                char c = input[i];
+
+                if (c == '(' || c == '（' || c == '【' || c == '*')
+                {
+                    int endIndex = -1;
+
+                    if (c == '*')
+                    {
+                        int nextStar = input.IndexOf('*', i + 1);
+                        if (nextStar != -1) endIndex = nextStar;
+                    }
+                    else
+                    {
+                        char opener = c;
+                        char closer = (c == '(') ? ')' : (c == '（') ? '）' : '】';
+                        int depth = 1;
+
+                        for (int j = i + 1; j < input.Length; j++)
+                        {
+                            if (input[j] == opener)
+                            {
+                                depth++;
+                            }
+                            else if (input[j] == closer)
+                            {
+                                depth--;
+                                if (depth == 0)
+                                {
+                                    endIndex = j;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (endIndex != -1)
+                    {
+                        string fullMatch = input.Substring(i, endIndex - i + 1);
+                        bool isKaomoji = IsLikelyKaomoji(fullMatch);
+
+                        if (isKaomoji)
+                        {
+                            if (settings.enableKaomojiColoring)
+                            {
+                                Color finalColor = settings.kaomojiColor;
+                                string hex = ColorUtility.ToHtmlStringRGBA(finalColor);
+                                string styledPart = $"<color=#{hex}>{fullMatch}</color>";
+                                if (settings.kaomojiBold) styledPart = $"<b>{styledPart}</b>";
+                                sb.Append(styledPart);
+                            }
+                            else
+                            {
+                                sb.Append(fullMatch);
+                            }
+                        }
+                        else
+                        {
+                            Color finalColor = settings.selfTalkColor;
+                            string hex = ColorUtility.ToHtmlStringRGBA(finalColor);
+                            string styledPart = $"<color=#{hex}>{fullMatch}</color>";
+                            if (settings.selfTalkItalic) styledPart = $"<i>{styledPart}</i>";
+                            if (settings.selfTalkBold) styledPart = $"<b>{styledPart}</b>";
+                            sb.Append(styledPart);
+                        }
+
+                        i = endIndex + 1;
+                        continue;
+                    }
+                }
+                sb.Append(c);
+                i++;
+            }
+            return sb.ToString();
         }
 
         private static bool IsLikelyKaomoji(string input)
@@ -565,6 +629,9 @@ namespace RimTalkDynamicColors
             if (def != null) { def.buttonVisible = settings.showHistoryTab; }
         }
 
+        // ==============================================================
+        // [修改核心] 历史记录绘制 (加入了头像渲染支持)
+        // ==============================================================
         public static void DrawHistoryArea(Listing_Standard listing, float width, float viewHeightParam = 300f)
         {
             listing.Label("<b>" + "RTDC_ChatHistoryViewer".Translate() + "</b>");
@@ -614,15 +681,23 @@ namespace RimTalkDynamicColors
                 else displayList = SessionHistory.Where(x => x.PawnName == filterPawnName).ToList();
             }
 
+            // 头像占用宽度 (图标宽度 + 间距)
+            float avatarSpace = settings.showAvatarInHistory ? 28f : 0f;
             float totalContentHeight = 0f;
             float viewWidth = viewerRect.width - 20f;
+
+            // 计算滚动区总高度
             for (int i = 0; i < displayList.Count; i++)
             {
                 var item = displayList[i];
                 string contentToMeasure = item.CleanContent;
                 Vector2 nameSize = Text.CalcSize(item.PawnName);
-                float textWidth = viewWidth - (nameSize.x + 15f);
+
+                // 减去头像占用的空间
+                float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
                 float textHeight = Text.CalcHeight(contentToMeasure, textWidth);
+
+                // 为了能放下头像，单行最低高度设为24f
                 totalContentHeight += Mathf.Max(24f, textHeight);
             }
 
@@ -630,6 +705,7 @@ namespace RimTalkDynamicColors
             Widgets.BeginScrollView(viewerRect, ref logViewerScrollPos, contentRect);
             float curY = 0f;
 
+            // 开始逐条绘制
             for (int i = 0; i < displayList.Count; i++)
             {
                 var item = displayList[i];
@@ -641,18 +717,40 @@ namespace RimTalkDynamicColors
                 string contentToShow = isDimmed ? item.CleanContent : item.Content;
 
                 Vector2 nameSize = Text.CalcSize(item.PawnName);
-                float textWidth = viewWidth - (nameSize.x + 15f);
+                float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
                 float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
                 float rowHeight = Mathf.Max(24f, textHeight);
 
                 Rect lineRect = new Rect(5f, curY, viewWidth, rowHeight);
-                Rect nameRect = new Rect(lineRect.x, lineRect.y, nameSize.x + 10f, rowHeight);
 
+                // [新增] 绘制头像逻辑
+                if (settings.showAvatarInHistory && item.SpeakerPawn != null && item.SpeakerPawn.SpawnedOrAnyParentSpawned)
+                {
+                    // 将头像垂直居中于当前行
+                    Rect avatarRect = new Rect(lineRect.x, lineRect.y + (rowHeight - 24f) / 2f, 24f, 24f);
+                    try
+                    {
+                        RenderTexture portrait = PortraitsCache.Get(item.SpeakerPawn, new Vector2(24f, 24f), Rot4.South);
+                        if (portrait != null)
+                        {
+                            GUI.DrawTexture(avatarRect, portrait);
+                        }
+                    }
+                    catch
+                    {
+                        // 兜底方案：如果获取失败(如特殊的异形种族)，则绘制基础图标
+                        Widgets.ThingIcon(avatarRect, item.SpeakerPawn);
+                    }
+                }
+
+                // 名字文本框 (向右推移 avatarSpace 的距离)
+                Rect nameRect = new Rect(lineRect.x + avatarSpace, lineRect.y, nameSize.x + 10f, rowHeight);
                 Color nameColorToDraw = isDimmed ? item.NameColor * 0.6f : item.NameColor;
                 nameColorToDraw.a = isDimmed ? 0.3f : 1f;
                 GUI.color = nameColorToDraw;
                 Widgets.Label(nameRect, $"[{item.PawnName}]");
 
+                // 内容文本框
                 GUI.color = isDimmed ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
                 Rect diagRect = new Rect(nameRect.xMax, lineRect.y, textWidth, rowHeight);
                 Widgets.Label(diagRect, contentToShow);
@@ -710,27 +808,34 @@ namespace RimTalkDynamicColors
             listing.GapLine(6f);
 
             listing.Label("<b>" + "RTDC_BasicSettings".Translate() + " / " + "RTDC_HistorySettings".Translate() + "</b>");
+
+            // 行1
             DrawTwoColumnCheckbox(listing,
                 "RTDC_EnableMod".Translate(), ref settings.isGlobalEnabled, "RTDC_EnableModDesc".Translate(),
                 "RTDC_ShowHistoryTab".Translate(), ref settings.showHistoryTab, "RTDC_ShowHistoryTabDesc".Translate());
             if (settings.showHistoryTab != DefDatabase<MainButtonDef>.GetNamed("RTDC_HistoryTab").buttonVisible) ApplyTabVisibility();
 
-            bool hasBubbles = hasBubblesMod;
-            string bubbleLabel = hasBubbles ? "RTDC_EnableBubblesSync".Translate() : ("RTDC_BubblesNotDetected".Translate() + " (Click Retry)");
+            // 行2：加入显示头像开关
             Rect row2 = listing.GetRect(24f);
             float halfW = row2.width / 2f;
-
             Widgets.CheckboxLabeled(new Rect(row2.x, row2.y, halfW - 5f, 24f), "RTDC_AutoExportHistory".Translate(), ref settings.autoExportHistory);
             TooltipHandler.TipRegion(new Rect(row2.x, row2.y, halfW - 5f, 24f), "RTDC_AutoExportHistoryDesc".Translate());
 
+            Widgets.CheckboxLabeled(new Rect(row2.x + halfW, row2.y, halfW - 5f, 24f), "RTDC_ShowAvatarInHistory".Translate(), ref settings.showAvatarInHistory);
+
+            // 行3：Bubbles 检测
+            bool hasBubbles = hasBubblesMod;
+            string bubbleLabel = hasBubbles ? "RTDC_EnableBubblesSync".Translate() : ("RTDC_BubblesNotDetected".Translate() + " (Click Retry)");
+            Rect row3 = listing.GetRect(24f);
+
             if (hasBubbles)
             {
-                Widgets.CheckboxLabeled(new Rect(row2.x + halfW, row2.y, halfW - 5f, 24f), bubbleLabel, ref settings.enableBubblesSync);
-                TooltipHandler.TipRegion(new Rect(row2.x + halfW, row2.y, halfW - 5f, 24f), "RTDC_EnableBubblesSyncDesc".Translate());
+                Widgets.CheckboxLabeled(new Rect(row3.x, row3.y, halfW - 5f, 24f), bubbleLabel, ref settings.enableBubblesSync);
+                TooltipHandler.TipRegion(new Rect(row3.x, row3.y, halfW - 5f, 24f), "RTDC_EnableBubblesSyncDesc".Translate());
             }
             else
             {
-                if (Widgets.ButtonText(new Rect(row2.x + halfW, row2.y, halfW - 5f, 24f), bubbleLabel)) TryPatchInteractionBubbles();
+                if (Widgets.ButtonText(new Rect(row3.x, row3.y, halfW - 5f, 24f), bubbleLabel)) TryPatchInteractionBubbles();
             }
 
             DrawTwoColumnCheckbox(listing,
@@ -753,9 +858,9 @@ namespace RimTalkDynamicColors
                 "RTDC_EnableForGuests".Translate(), ref settings.enableForGuests, null,
                 "RTDC_EnableForFriendlies".Translate(), ref settings.enableForFriendlies, null);
 
-            Rect row3 = listing.GetRect(24f);
-            Widgets.CheckboxLabeled(new Rect(row3.x, row3.y, halfW - 5f, 24f), "RTDC_EnableForEnemies".Translate(), ref settings.enableForEnemies);
-            Widgets.CheckboxLabeled(new Rect(row3.x + halfW, row3.y, halfW - 5f, 24f), "RTDC_EnableForNonHumans".Translate(), ref settings.enableForNonHumans);
+            Rect rowColor = listing.GetRect(24f);
+            Widgets.CheckboxLabeled(new Rect(rowColor.x, rowColor.y, halfW - 5f, 24f), "RTDC_EnableForEnemies".Translate(), ref settings.enableForEnemies);
+            Widgets.CheckboxLabeled(new Rect(rowColor.x + halfW, rowColor.y, halfW - 5f, 24f), "RTDC_EnableForNonHumans".Translate(), ref settings.enableForNonHumans);
 
             if (settings.enableForNonHumans)
             {
@@ -1149,7 +1254,6 @@ namespace RimTalkDynamicColors
         }
     }
 
-    // [Fix] 修复窗口高度计算，确保底部按钮可见
     public class RimTalkHistoryWindow : Window
     {
         public RimTalkHistoryWindow() { this.doCloseX = true; this.forcePause = false; this.preventCameraMotion = false; this.draggable = true; this.resizeable = true; this.optionalTitle = "RTDC_HistoryTab".Translate(); }
@@ -1158,7 +1262,6 @@ namespace RimTalkDynamicColors
         {
             Listing_Standard listing = new Listing_Standard();
             listing.Begin(inRect);
-            // 之前是280f，现在增加到380f以容纳顶部的额外控件
             float logViewHeight = inRect.height - 380f;
             if (logViewHeight < 200f) logViewHeight = 200f;
             DynamicColorMod.DrawHistoryArea(listing, inRect.width, logViewHeight);
@@ -1452,7 +1555,8 @@ namespace RimTalkDynamicColors
                             NameColor = nameColor,
                             NameBold = nameBold,
                             Timestamp = DateTime.Now.ToShortTimeString(),
-                            SourceObject = msg
+                            SourceObject = msg,
+                            SpeakerPawn = p // [新增] 保存用于头像绘制的Pawn
                         });
                         DynamicColorMod.CurrentProcessingPawn = null;
                     }
