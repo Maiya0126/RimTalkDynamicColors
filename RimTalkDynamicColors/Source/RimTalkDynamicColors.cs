@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,6 +17,10 @@ using Verse.Sound;
 namespace RimTalkDynamicColors
 {
     // ==========================================
+    // v1.1.3 - 新增自定义符号样式
+    // ==========================================
+
+    // ==========================================
     // 1. 数据结构
     // ==========================================
     public class ColorEntry : IExposable
@@ -30,6 +34,20 @@ namespace RimTalkDynamicColors
     }
 
     public struct StyleData { public Color color; public bool isBold; public StyleData(Color c, bool b) { color = c; isBold = b; } }
+
+    public class BracketStyleEntry : IExposable
+    {
+        public string openSymbol = "";
+        public string closeSymbol = "";
+        public Color color = new Color(0.6f, 0.6f, 0.6f, 1f);
+        public bool isBold = false;
+        public bool isItalic = false;
+        public BracketStyleEntry() { }
+        public BracketStyleEntry(string open, string close, Color c, bool bold = false, bool italic = false) { openSymbol = open ?? ""; closeSymbol = close ?? ""; color = c; isBold = bold; isItalic = italic; }
+        public void ExposeData() { Scribe_Values.Look(ref openSymbol, "openSymbol", ""); Scribe_Values.Look(ref closeSymbol, "closeSymbol", ""); Scribe_Values.Look(ref color, "color", new Color(0.6f, 0.6f, 0.6f, 1f)); Scribe_Values.Look(ref isBold, "isBold", false); Scribe_Values.Look(ref isItalic, "isItalic", false); }
+    }
+
+    public struct RainbowCacheEntry { public string cachedText; public float lastUpdateTime; }
 
     public class LogItem
     {
@@ -53,6 +71,7 @@ namespace RimTalkDynamicColors
     {
         public List<ColorEntry> nameEntries = new List<ColorEntry>();
         public List<ColorEntry> keywordEntries = new List<ColorEntry>();
+        public List<BracketStyleEntry> bracketStyleEntries = new List<BracketStyleEntry>();
 
         public bool isGlobalEnabled = true;
         public bool showHistoryTab = true;
@@ -101,6 +120,7 @@ namespace RimTalkDynamicColors
         private Dictionary<string, StyleData> _combinedCache;
         private Regex _cachedRegexPattern;
 
+        public bool IsManualNameEntry(string name) { if (nameEntries == null) return false; for (int i = 0; i < nameEntries.Count; i++) { if (nameEntries[i].text == name) return true; } return false; }
         public Dictionary<string, StyleData> GetCombinedCache() { if (_combinedCache == null) RebuildCache(); return _combinedCache; }
         public Regex GetCachedRegex() { if (_combinedCache == null) RebuildCache(); return _cachedRegexPattern; }
 
@@ -200,8 +220,10 @@ namespace RimTalkDynamicColors
         {
             Scribe_Collections.Look(ref nameEntries, "nameEntries", LookMode.Deep);
             Scribe_Collections.Look(ref keywordEntries, "keywordEntries", LookMode.Deep);
+            Scribe_Collections.Look(ref bracketStyleEntries, "bracketStyleEntries", LookMode.Deep);
             if (nameEntries == null) nameEntries = new List<ColorEntry>();
             if (keywordEntries == null) keywordEntries = new List<ColorEntry>();
+            if (bracketStyleEntries == null) bracketStyleEntries = new List<BracketStyleEntry>();
 
             Scribe_Values.Look(ref isGlobalEnabled, "isGlobalEnabled", true);
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
@@ -254,6 +276,8 @@ namespace RimTalkDynamicColors
 
         public static bool IsDrawingBubble = false;
         public static bool IsDrawingChatLog = false;
+        public static int lastBubbleFrame = -1;
+        public static int lastChatLogFrame = -1;
 
         public const string RainbowHediffDefName = "RimTalk_RainbowStatus";
         public const string BlackWhiteHediffDefName = "RimTalk_BlackWhiteStatus";
@@ -267,12 +291,27 @@ namespace RimTalkDynamicColors
 
         private string inputNameBuffer = "";
         private string inputKeywordBuffer = "";
+        private string inputOpenSymbolBuffer = "";
+        private string inputCloseSymbolBuffer = "";
+        private Vector2 bracketListScrollPos = Vector2.zero;
 
         public static List<LogItem> SessionHistory = new List<LogItem>();
         public static HashSet<object> RecordedObjects = new HashSet<object>();
+        public static HashSet<Guid> RecordedTalkIds = new HashSet<Guid>();
+        public const int MaxHistoryCount = 200;
 
         public static List<FieldInfo> BubblePawnFields = new List<FieldInfo>();
         private static Dictionary<string, Pawn> _nameToPawnCache = new Dictionary<string, Pawn>();
+
+        private static Dictionary<string, RainbowCacheEntry> _rainbowCache = new Dictionary<string, RainbowCacheEntry>();
+        private const float RainbowCacheUpdateInterval = 0.05f;
+
+        private static List<float> _cachedRowHeights = new List<float>();
+        private static List<float> _cachedRowYPositions = new List<float>();
+        private static float _cachedTotalHeight = 0f;
+        private static int _lastHistoryCount = -1;
+        private static string _lastFilterName = "";
+        private static float _lastViewWidth = 0f;
 
         public static string filterPawnName = "All";
         public static bool filterDimMode = true;
@@ -310,6 +349,28 @@ namespace RimTalkDynamicColors
                         );
                     }
                 }
+
+                Type talkServiceType = AccessTools.TypeByName("RimTalk.Service.TalkService");
+                if (talkServiceType != null)
+                {
+                    MethodInfo createInteractionMethod = AccessTools.Method(talkServiceType, "CreateInteraction");
+                    if (createInteractionMethod != null)
+                    {
+                        harmony.Patch(createInteractionMethod,
+                            postfix: new HarmonyMethod(typeof(Patch_TalkService_CreateInteraction), nameof(Patch_TalkService_CreateInteraction.Postfix)));
+                    }
+                }
+
+                Type customDialogueType = AccessTools.TypeByName("RimTalk.Service.CustomDialogueService");
+                if (customDialogueType != null)
+                {
+                    MethodInfo executeDialogueMethod = AccessTools.Method(customDialogueType, "ExecuteDialogue");
+                    if (executeDialogueMethod != null)
+                    {
+                        harmony.Patch(executeDialogueMethod,
+                            postfix: new HarmonyMethod(typeof(Patch_CustomDialogueService_ExecuteDialogue), nameof(Patch_CustomDialogueService_ExecuteDialogue.Postfix)));
+                    }
+                }
             }
             catch (Exception) { }
         }
@@ -320,6 +381,66 @@ namespace RimTalkDynamicColors
         {
             SessionHistory.Clear();
             RecordedObjects.Clear();
+            RecordedTalkIds.Clear();
+        }
+
+        public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue)
+        {
+            CurrentProcessingPawn = pawn;
+
+            Color nameColor = Color.white;
+            bool nameBold = false;
+
+            if (settings.enableRimTalkNameColoring)
+            {
+                if (settings.IsManualNameEntry(pawnName) && settings.GetCombinedCache().TryGetValue(pawnName, out StyleData style))
+                {
+                    nameColor = style.color;
+                    nameBold = style.isBold;
+                }
+                else if (settings.autoApplyFavColor && pawn != null && pawn.RaceProps.Humanlike && pawn.story != null && pawn.story.favoriteColor != null)
+                {
+                    nameColor = pawn.story.favoriteColor.color;
+                    nameBold = settings.autoApplyBold;
+                }
+                else if (pawn != null && settings.useFactionColor && pawn.Faction != null)
+                {
+                    nameColor = pawn.Faction.Color;
+                }
+                else if (pawn != null && !pawn.RaceProps.Humanlike && settings.enableForNonHumans)
+                {
+                    nameColor = settings.nonHumanDefaultColor;
+                }
+                else if (settings.GetCombinedCache().TryGetValue(pawnName, out StyleData kwStyle))
+                {
+                    nameColor = kwStyle.color;
+                    nameBold = kwStyle.isBold;
+                }
+            }
+
+            string coloredDialogue = ColorizeString(rawDialogue);
+            string cleanDialogue = ColorizeStringInternal(rawDialogue, true);
+
+            SessionHistory.Add(new LogItem()
+            {
+                PawnName = pawnName,
+                Content = coloredDialogue,
+                CleanContent = cleanDialogue,
+                OriginalContent = rawDialogue,
+                NameColor = nameColor,
+                NameBold = nameBold,
+                Timestamp = DateTime.Now.ToShortTimeString(),
+                SourceObject = null,
+                SpeakerPawn = pawn
+            });
+
+            CurrentProcessingPawn = null;
+
+            if (SessionHistory.Count >= MaxHistoryCount)
+            {
+                if (settings.autoExportHistory) ExportChatLog(true, true);
+                ClearSessionHistory();
+            }
         }
 
         public void TryPatchInteractionBubbles()
@@ -383,7 +504,7 @@ namespace RimTalkDynamicColors
 
         public static string ColorizeStringInternal(string input, bool forbidEffects)
         {
-            if (settings == null || !settings.isGlobalEnabled) return input;
+            if (settings == null || !settings.isGlobalEnabled || !settings.enableChatColoring) return input;
             if (string.IsNullOrEmpty(input)) return input;
 
             Pawn targetPawn = CurrentProcessingPawn;
@@ -439,6 +560,43 @@ namespace RimTalkDynamicColors
             while (i < input.Length)
             {
                 char c = input[i];
+
+                bool customMatched = false;
+                if (settings.bracketStyleEntries != null)
+                {
+                    foreach (var entry in settings.bracketStyleEntries)
+                    {
+                        if (string.IsNullOrEmpty(entry.openSymbol) || string.IsNullOrEmpty(entry.closeSymbol)) continue;
+                        if (c != entry.openSymbol[0]) continue;
+                        if (i + entry.openSymbol.Length > input.Length) continue;
+                        if (input.Substring(i, entry.openSymbol.Length) != entry.openSymbol) continue;
+
+                        int searchStart = i + entry.openSymbol.Length;
+                        int closeIdx = -1;
+                        for (int j = searchStart; j <= input.Length - entry.closeSymbol.Length; j++)
+                        {
+                            if (input.Substring(j, entry.closeSymbol.Length) == entry.closeSymbol)
+                            {
+                                closeIdx = j;
+                                break;
+                            }
+                        }
+
+                        if (closeIdx != -1)
+                        {
+                            string fullMatch = input.Substring(i, closeIdx + entry.closeSymbol.Length - i);
+                            string hex = ColorUtility.ToHtmlStringRGBA(entry.color);
+                            string styledPart = $"<color=#{hex}>{fullMatch}</color>";
+                            if (entry.isItalic) styledPart = $"<i>{styledPart}</i>";
+                            if (entry.isBold) styledPart = $"<b>{styledPart}</b>";
+                            sb.Append(styledPart);
+                            i = closeIdx + entry.closeSymbol.Length;
+                            customMatched = true;
+                            break;
+                        }
+                    }
+                }
+                if (customMatched) continue;
 
                 if (c == '(' || c == '（' || c == '【' || c == '*')
                 {
@@ -569,8 +727,17 @@ namespace RimTalkDynamicColors
 
         private static string GenerateRainbowText(string input)
         {
+            float currentTime = Time.realtimeSinceStartup;
+            string cacheKey = input;
+            if (_rainbowCache.TryGetValue(cacheKey, out RainbowCacheEntry cached))
+            {
+                if (currentTime - cached.lastUpdateTime < RainbowCacheUpdateInterval)
+                {
+                    return cached.cachedText;
+                }
+            }
             StringBuilder sb = new StringBuilder();
-            float timeOffset = Time.realtimeSinceStartup * 2f;
+            float timeOffset = currentTime * 2f;
             int cleanCharIndex = 0;
             for (int i = 0; i < input.Length; i++)
             {
@@ -582,7 +749,14 @@ namespace RimTalkDynamicColors
                 string hex = ColorUtility.ToHtmlStringRGB(rainbowColor);
                 sb.Append($"<color=#{hex}>{c}</color>"); cleanCharIndex++;
             }
-            return sb.ToString();
+            string result = sb.ToString();
+            _rainbowCache[cacheKey] = new RainbowCacheEntry { cachedText = result, lastUpdateTime = currentTime };
+            if (_rainbowCache.Count > 50)
+            {
+                var keysToRemove = _rainbowCache.OrderBy(x => x.Value.lastUpdateTime).Take(20).Select(x => x.Key).ToList();
+                foreach (var key in keysToRemove) _rainbowCache.Remove(key);
+            }
+            return result;
         }
 
         private static string GenerateBlackWhiteText(string input)
@@ -681,34 +855,62 @@ namespace RimTalkDynamicColors
                 else displayList = SessionHistory.Where(x => x.PawnName == filterPawnName).ToList();
             }
 
-            // 头像占用宽度 (图标宽度 + 间距)
             float avatarSpace = settings.showAvatarInHistory ? 28f : 0f;
-            float totalContentHeight = 0f;
             float viewWidth = viewerRect.width - 20f;
 
-            // 计算滚动区总高度
-            for (int i = 0; i < displayList.Count; i++)
+            bool needRecalculate = _lastHistoryCount != displayList.Count || _lastFilterName != filterPawnName || Math.Abs(_lastViewWidth - viewWidth) > 1f;
+            if (needRecalculate)
             {
-                var item = displayList[i];
-                string contentToMeasure = item.CleanContent;
-                Vector2 nameSize = Text.CalcSize(item.PawnName);
+                _cachedRowHeights.Clear();
+                _cachedRowYPositions.Clear();
+                _cachedTotalHeight = 0f;
 
-                // 减去头像占用的空间
-                float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
-                float textHeight = Text.CalcHeight(contentToMeasure, textWidth);
+                for (int i = 0; i < displayList.Count; i++)
+                {
+                    var item = displayList[i];
+                    Vector2 nameSize = Text.CalcSize(item.PawnName);
+                    float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
+                    float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
+                    float rowHeight = Mathf.Max(24f, textHeight);
 
-                // 为了能放下头像，单行最低高度设为24f
-                totalContentHeight += Mathf.Max(24f, textHeight);
+                    _cachedRowYPositions.Add(_cachedTotalHeight);
+                    _cachedRowHeights.Add(rowHeight);
+                    _cachedTotalHeight += rowHeight;
+                }
+
+                _lastHistoryCount = displayList.Count;
+                _lastFilterName = filterPawnName;
+                _lastViewWidth = viewWidth;
             }
 
-            Rect contentRect = new Rect(0, 0, viewWidth, totalContentHeight);
+            Rect contentRect = new Rect(0, 0, viewWidth, _cachedTotalHeight);
             Widgets.BeginScrollView(viewerRect, ref logViewerScrollPos, contentRect);
-            float curY = 0f;
 
-            // 开始逐条绘制
-            for (int i = 0; i < displayList.Count; i++)
+            float visibleTop = logViewerScrollPos.y;
+            float visibleBottom = logViewerScrollPos.y + viewerRect.height;
+
+            int firstVisibleIndex = -1;
+            int lastVisibleIndex = -1;
+            for (int i = 0; i < _cachedRowYPositions.Count; i++)
+            {
+                float rowTop = _cachedRowYPositions[i];
+                float rowBottom = rowTop + _cachedRowHeights[i];
+                if (rowBottom >= visibleTop && rowTop <= visibleBottom)
+                {
+                    if (firstVisibleIndex < 0) firstVisibleIndex = i;
+                    lastVisibleIndex = i;
+                }
+            }
+
+            if (firstVisibleIndex < 0) firstVisibleIndex = 0;
+            if (lastVisibleIndex < 0) lastVisibleIndex = displayList.Count - 1;
+            lastVisibleIndex = Mathf.Min(lastVisibleIndex, displayList.Count - 1);
+
+            for (int i = firstVisibleIndex; i <= lastVisibleIndex; i++)
             {
                 var item = displayList[i];
+                float curY = _cachedRowYPositions[i];
+                float rowHeight = _cachedRowHeights[i];
                 bool isDimmed = (filterPawnName != "All" && filterDimMode && item.PawnName != filterPawnName);
 
                 Color originalGuiColor = GUI.color;
@@ -718,16 +920,12 @@ namespace RimTalkDynamicColors
 
                 Vector2 nameSize = Text.CalcSize(item.PawnName);
                 float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
-                float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
-                float rowHeight = Mathf.Max(24f, textHeight);
 
                 Rect lineRect = new Rect(5f, curY, viewWidth, rowHeight);
 
-                // [新增] 绘制头像逻辑
                 if (settings.showAvatarInHistory && item.SpeakerPawn != null && item.SpeakerPawn.SpawnedOrAnyParentSpawned)
                 {
-                    // 将头像垂直居中于当前行
-                    Rect avatarRect = new Rect(lineRect.x, lineRect.y + (rowHeight - 24f) / 2f, 24f, 24f);
+                    Rect avatarRect = new Rect(lineRect.x, lineRect.y, 24f, 24f);
                     try
                     {
                         RenderTexture portrait = PortraitsCache.Get(item.SpeakerPawn, new Vector2(24f, 24f), Rot4.South);
@@ -738,17 +936,19 @@ namespace RimTalkDynamicColors
                     }
                     catch
                     {
-                        // 兜底方案：如果获取失败(如特殊的异形种族)，则绘制基础图标
                         Widgets.ThingIcon(avatarRect, item.SpeakerPawn);
                     }
                 }
 
-                // 名字文本框 (向右推移 avatarSpace 的距离)
                 Rect nameRect = new Rect(lineRect.x + avatarSpace, lineRect.y, nameSize.x + 10f, rowHeight);
                 Color nameColorToDraw = isDimmed ? item.NameColor * 0.6f : item.NameColor;
                 nameColorToDraw.a = isDimmed ? 0.3f : 1f;
-                GUI.color = nameColorToDraw;
-                Widgets.Label(nameRect, $"[{item.PawnName}]");
+                Color vanillaColor = Color.white;
+                if (!isDimmed && item.SpeakerPawn != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(item.SpeakerPawn);
+                string nameHex = ColorUtility.ToHtmlStringRGB(nameColorToDraw);
+                string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
+                GUI.color = Color.white;
+                Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{item.PawnName}</color><color=#{bracketHex}>]</color>");
 
                 // 内容文本框
                 GUI.color = isDimmed ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
@@ -756,7 +956,6 @@ namespace RimTalkDynamicColors
                 Widgets.Label(diagRect, contentToShow);
 
                 GUI.color = originalGuiColor;
-                curY += rowHeight;
             }
             Widgets.EndScrollView();
 
@@ -796,7 +995,7 @@ namespace RimTalkDynamicColors
         {
             if (settings == null) settings = GetSettings<DynamicColorSettings>();
 
-            Rect viewRect = new Rect(0, 0, inRect.width - 16f, 1050f);
+            Rect viewRect = new Rect(0, 0, inRect.width - 16f, 1350f);
             Widgets.BeginScrollView(inRect, ref mainScrollPosition, viewRect);
 
             Listing_Standard listing = new Listing_Standard();
@@ -925,6 +1124,45 @@ namespace RimTalkDynamicColors
 
             listing.GapLine(6f);
 
+            listing.Label("<b>" + "RTDC_BracketStyleSettings".Translate() + "</b>");
+            listing.Label("RTDC_BracketStyleDesc".Translate());
+            listing.Gap(4f);
+
+            Rect bsInputRow = listing.GetRect(26f);
+            float bsFieldW = (bsInputRow.width - 90f) / 2f;
+            inputOpenSymbolBuffer = Widgets.TextField(new Rect(bsInputRow.x, bsInputRow.y, bsFieldW, 26f), inputOpenSymbolBuffer ?? "");
+            Widgets.Label(new Rect(bsInputRow.x + bsFieldW + 2f, bsInputRow.y, 16f, 26f), "~");
+            inputCloseSymbolBuffer = Widgets.TextField(new Rect(bsInputRow.x + bsFieldW + 20f, bsInputRow.y, bsFieldW, 26f), inputCloseSymbolBuffer ?? "");
+            if (Widgets.ButtonText(new Rect(bsInputRow.xMax - 60f, bsInputRow.y, 60f, 26f), "RTDC_Add".Translate()))
+            {
+                if (!string.IsNullOrEmpty(inputOpenSymbolBuffer) && !string.IsNullOrEmpty(inputCloseSymbolBuffer))
+                {
+                    settings.bracketStyleEntries.Add(new BracketStyleEntry(inputOpenSymbolBuffer, inputCloseSymbolBuffer, new Color(0.6f, 0.6f, 0.6f, 1f)));
+                    inputOpenSymbolBuffer = "";
+                    inputCloseSymbolBuffer = "";
+                }
+            }
+
+            if (settings.bracketStyleEntries.Count > 0)
+            {
+                float bsListHeight = settings.bracketStyleEntries.Count * 28f;
+                Rect bsListRect = listing.GetRect(Mathf.Min(bsListHeight, 200f));
+                Widgets.DrawBoxSolid(bsListRect, new Color(0.1f, 0.1f, 0.1f, 0.2f));
+                Widgets.DrawBox(bsListRect);
+
+                Rect bsViewRect = new Rect(0, 0, bsListRect.width - 20f, bsListHeight);
+                Widgets.BeginScrollView(bsListRect, ref bracketListScrollPos, bsViewRect);
+                DrawBracketStyleList(settings.bracketStyleEntries, bsViewRect.width);
+                Widgets.EndScrollView();
+            }
+
+            if (listing.ButtonText("RTDC_ClearBracketStyles".Translate()))
+            {
+                settings.bracketStyleEntries.Clear();
+            }
+
+            listing.GapLine(6f);
+
             listing.Label("<b>" + "RTDC_DataManage".Translate() + "</b>");
             listing.Gap(4f);
 
@@ -1010,6 +1248,68 @@ namespace RimTalkDynamicColors
             Widgets.BeginScrollView(outRect, ref keywordListScrollPos, viewRect);
             DrawCustomListContent(settings.keywordEntries, viewRect.width, keywordListScrollPos, outRect.height);
             Widgets.EndScrollView();
+        }
+
+        private void DrawBracketStyleList(List<BracketStyleEntry> entries, float width)
+        {
+            if (entries == null) return;
+            List<BracketStyleEntry> toRemove = new List<BracketStyleEntry>();
+            float curY = 0f;
+            float rowHeight = 28f;
+            float delW = 40f;
+            float colorBoxW = 24f;
+            float colorBtnW = 50f;
+            float boldW = 24f;
+            float italicW = 24f;
+            float arrowW = 16f;
+            float symbolW = (width - delW - colorBoxW - colorBtnW - boldW - italicW - arrowW - 25f) / 2f;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (curY + rowHeight < bracketListScrollPos.y || curY > bracketListScrollPos.y + 200f)
+                {
+                    curY += rowHeight;
+                    continue;
+                }
+
+                BracketStyleEntry entry = entries[i];
+                if (entry == null) continue;
+
+                float curX = 0f;
+
+                entry.openSymbol = Widgets.TextField(new Rect(curX, curY, symbolW, 24f), entry.openSymbol ?? "");
+                curX += symbolW + 2f;
+
+                Widgets.Label(new Rect(curX, curY, arrowW, 24f), "~");
+                curX += arrowW + 2f;
+
+                entry.closeSymbol = Widgets.TextField(new Rect(curX, curY, symbolW, 24f), entry.closeSymbol ?? "");
+                curX += symbolW + 5f;
+
+                if (Widgets.ButtonText(new Rect(curX, curY, colorBtnW, 24f), "Color"))
+                {
+                    Find.WindowStack.Add(new ColorPickerWindow(entry.color, Color.gray, $"{entry.openSymbol}..{entry.closeSymbol}", (c) => entry.color = c));
+                }
+                curX += colorBtnW + 2f;
+
+                Widgets.DrawBoxSolid(new Rect(curX, curY, colorBoxW, 24f), entry.color);
+                curX += colorBoxW + 5f;
+
+                Widgets.Checkbox(new Vector2(curX, curY), ref entry.isBold);
+                TooltipHandler.TipRegion(new Rect(curX, curY, boldW, 24f), "RTDC_Bold".Translate());
+                curX += boldW + 3f;
+
+                Widgets.Checkbox(new Vector2(curX, curY), ref entry.isItalic);
+                TooltipHandler.TipRegion(new Rect(curX, curY, italicW, 24f), "RTDC_Italic".Translate());
+                curX += italicW + 3f;
+
+                if (Widgets.ButtonText(new Rect(curX, curY, delW, 24f), "Del"))
+                    toRemove.Add(entry);
+
+                curY += rowHeight;
+            }
+
+            foreach (var item in toRemove) entries.Remove(item);
         }
 
         private void DrawTwoColumnCheckbox(Listing_Standard listing, string label1, ref bool check1, string tip1, string label2, ref bool check2, string tip2)
@@ -1416,14 +1716,17 @@ namespace RimTalkDynamicColors
         public static bool Prefix(Pawn pawn, ref Color __result)
         {
             if (DynamicColorMod.settings == null || !DynamicColorMod.settings.isGlobalEnabled || pawn == null) return true;
-            if (!DynamicColorMod.IsDrawingBubble && !DynamicColorMod.IsDrawingChatLog) return true;
+            bool inBubbleContext = DynamicColorMod.IsDrawingBubble && DynamicColorMod.lastBubbleFrame == Time.frameCount;
+            if (!inBubbleContext) return true;
             bool allow = false;
             if (pawn.RaceProps.Humanlike) { if (pawn.IsPrisoner) allow = DynamicColorMod.settings.enableForPrisoners; else if (pawn.IsSlave) allow = DynamicColorMod.settings.enableForSlaves; else if (pawn.HostileTo(Faction.OfPlayer)) allow = DynamicColorMod.settings.enableForEnemies; else if (pawn.Faction != null && !pawn.Faction.IsPlayer) allow = DynamicColorMod.settings.enableForFriendlies; else if (pawn.Faction == null) allow = DynamicColorMod.settings.enableForGuests; else allow = true; } else { allow = DynamicColorMod.settings.enableForNonHumans; }
             if (!allow) return true;
-            if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(pawn.Name.ToStringShort, out StyleData style)) { __result = style.color; return false; }
+            string pName = pawn.Name.ToStringShort;
+            if (DynamicColorMod.settings.IsManualNameEntry(pName) && DynamicColorMod.settings.GetCombinedCache().TryGetValue(pName, out StyleData manualStyle)) { __result = manualStyle.color; return false; }
             if (DynamicColorMod.settings.autoApplyFavColor && pawn.RaceProps.Humanlike && pawn.story != null && pawn.story.favoriteColor != null) { __result = pawn.story.favoriteColor.color; return false; }
             if (DynamicColorMod.settings.useFactionColor && pawn.Faction != null) { __result = pawn.Faction.Color; return false; }
             if (!pawn.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { __result = DynamicColorMod.settings.nonHumanDefaultColor; return false; }
+            if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(pName, out StyleData kwStyle)) { __result = kwStyle.color; return false; }
             return true;
         }
     }
@@ -1432,15 +1735,14 @@ namespace RimTalkDynamicColors
     {
         private static FieldInfo _cachedMessagesField;
         private static FieldInfo _pawnNameField;
-        private static FieldInfo _dialogueField;
         private static FieldInfo _pawnInstField;
-
-        private const int MaxHistoryCount = 200;
 
         public static void Prefix(object __instance)
         {
             DynamicColorMod.IsDrawingChatLog = true;
-            if (DynamicColorMod.settings.enableRimTalkNameColoring && __instance != null)
+            DynamicColorMod.lastChatLogFrame = Time.frameCount;
+
+            if (__instance != null)
             {
                 try
                 {
@@ -1454,18 +1756,32 @@ namespace RimTalkDynamicColors
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
                             if (_pawnNameField == null) _pawnNameField = AccessTools.Field(t, "PawnName") ?? AccessTools.Field(t, "pawnName");
                             string rawName = _pawnNameField.GetValue(msg) as string;
-                            if (string.IsNullOrEmpty(rawName) || rawName.StartsWith("<color=")) continue;
+                            if (string.IsNullOrEmpty(rawName)) continue;
+
+                            if (!DynamicColorMod.settings.isGlobalEnabled || !DynamicColorMod.settings.enableRimTalkNameColoring)
+                            {
+                                if (rawName.StartsWith("<color="))
+                                {
+                                    string cleanName = Regex.Replace(rawName, @"<color=[^>]*>", "");
+                                    cleanName = Regex.Replace(cleanName, @"</color>", "");
+                                    _pawnNameField.SetValue(msg, cleanName);
+                                }
+                                continue;
+                            }
+
+                            if (rawName.StartsWith("<color=")) continue;
 
                             if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
                             Pawn p = _pawnInstField?.GetValue(msg) as Pawn;
                             if (p == null) p = DynamicColorMod.FindPawnByName(rawName);
 
                             Color nameColor = Color.white; bool foundColor = false;
-                            if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData style)) { nameColor = style.color; foundColor = true; }
+                            if (DynamicColorMod.settings.IsManualNameEntry(rawName) && DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData manualStyle)) { nameColor = manualStyle.color; foundColor = true; }
                             else if (DynamicColorMod.settings.autoApplyFavColor && p != null && p.RaceProps.Humanlike && p.story != null && p.story.favoriteColor != null) { nameColor = p.story.favoriteColor.color; foundColor = true; }
                             else if (DynamicColorMod.settings.useFactionColor && p != null && p.Faction != null) { nameColor = p.Faction.Color; foundColor = true; }
                             else if (p != null && !p.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { nameColor = DynamicColorMod.settings.nonHumanDefaultColor; foundColor = true; }
                             else if (p != null && p.RaceProps.Humanlike && p.HostileTo(Faction.OfPlayer) && DynamicColorMod.settings.enableForEnemies) { nameColor = Color.red; foundColor = true; }
+                            else if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData kwStyle)) { nameColor = kwStyle.color; foundColor = true; }
 
                             if (foundColor) { string hex = ColorUtility.ToHtmlStringRGB(nameColor); _pawnNameField.SetValue(msg, $"<color=#{hex}>{rawName}</color>"); }
                         }
@@ -1485,88 +1801,66 @@ namespace RimTalkDynamicColors
         public static void Postfix(object __instance)
         {
             DynamicColorMod.IsDrawingChatLog = false;
-            if (Time.frameCount % 2 != 0) return;
+        }
+    }
+
+    public static class Patch_TalkService_CreateInteraction
+    {
+        private static PropertyInfo _propTalkName;
+        private static PropertyInfo _propTalkText;
+        private static PropertyInfo _propTalkId;
+
+        public static void Postfix(Pawn pawn, object talk)
+        {
+            if (pawn == null || talk == null) return;
+            if (DynamicColorMod.settings == null || !DynamicColorMod.settings.isGlobalEnabled) return;
 
             try
             {
-                if (_cachedMessagesField == null) _cachedMessagesField = AccessTools.Field(__instance.GetType(), "_cachedMessagesForLog");
-                if (_cachedMessagesField == null) return;
+                Type t = talk.GetType();
+                if (_propTalkName == null) _propTalkName = AccessTools.Property(t, "Name");
+                if (_propTalkText == null) _propTalkText = AccessTools.Property(t, "Text");
+                if (_propTalkId == null) _propTalkId = AccessTools.Property(t, "Id");
 
-                var list = _cachedMessagesField.GetValue(__instance) as System.Collections.IList;
-                if (list != null && list.Count > 0)
+                Guid talkId = Guid.Empty;
+                if (_propTalkId != null) talkId = (Guid)_propTalkId.GetValue(talk);
+                if (talkId != Guid.Empty && !DynamicColorMod.RecordedTalkIds.Add(talkId)) return;
+
+                string pawnName = _propTalkName?.GetValue(talk) as string ?? pawn.LabelShort;
+                string rawDialogue = _propTalkText?.GetValue(talk) as string ?? "";
+
+                if (string.IsNullOrEmpty(pawnName)) pawnName = pawn.LabelShort;
+                if (string.IsNullOrEmpty(rawDialogue)) return;
+
+                DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue);
+            }
+            catch (Exception) { }
+        }
+    }
+
+    public static class Patch_CustomDialogueService_ExecuteDialogue
+    {
+        private static MethodInfo _methodGetPlayer;
+
+        public static void Postfix(Pawn initiator, Pawn recipient, string message)
+        {
+            if (initiator == null || string.IsNullOrEmpty(message)) return;
+            if (DynamicColorMod.settings == null || !DynamicColorMod.settings.isGlobalEnabled) return;
+
+            try
+            {
+                if (_methodGetPlayer == null)
                 {
-                    var sampleMsg = list[0];
-                    if (sampleMsg != null)
-                    {
-                        Type t = sampleMsg.GetType();
-                        if (_pawnNameField == null) _pawnNameField = AccessTools.Field(t, "PawnName") ?? AccessTools.Field(t, "pawnName");
-                        if (_dialogueField == null) _dialogueField = AccessTools.Field(t, "Dialogue") ?? AccessTools.Field(t, "dialogue");
-                        if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
-                    }
-
-                    var lastRecorded = DynamicColorMod.SessionHistory.LastOrDefault();
-                    int startAddingIndex = 0;
-
-                    if (lastRecorded != null)
-                    {
-                        startAddingIndex = -1;
-                        int searchDepth = 20;
-                        int minIndex = Math.Max(0, list.Count - searchDepth);
-
-                        for (int i = list.Count - 1; i >= minIndex; i--)
-                        {
-                            var msg = list[i];
-                            if (msg == null) continue;
-                            if (lastRecorded.SourceObject != null && msg == lastRecorded.SourceObject) { startAddingIndex = i + 1; break; }
-                            string rawName = _pawnNameField?.GetValue(msg) as string ?? "";
-                            string cleanName = Regex.Replace(rawName, @"<.*?>", "").Trim();
-                            string rawDialogue = (_dialogueField?.GetValue(msg) as string ?? "").Trim();
-                            if (cleanName == lastRecorded.PawnName && rawDialogue == lastRecorded.OriginalContent.Trim()) { startAddingIndex = i + 1; break; }
-                        }
-                        if (startAddingIndex == -1) startAddingIndex = list.Count - 1;
-                    }
-                    else { startAddingIndex = Math.Max(0, list.Count - 5); }
-
-                    for (int i = startAddingIndex; i < list.Count; i++)
-                    {
-                        var msg = list[i]; if (msg == null) continue;
-                        string rawName = _pawnNameField?.GetValue(msg) as string ?? "Unknown";
-                        string cleanName = Regex.Replace(rawName, @"<.*?>", "").Trim();
-                        string rawDialogue = (_dialogueField?.GetValue(msg) as string ?? "");
-                        Pawn p = _pawnInstField?.GetValue(msg) as Pawn;
-                        if (p == null) p = DynamicColorMod.FindPawnByName(cleanName);
-
-                        DynamicColorMod.CurrentProcessingPawn = p;
-                        Color nameColor = Color.white; bool nameBold = false;
-                        if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(cleanName, out StyleData style)) { nameColor = style.color; nameBold = style.isBold; }
-                        else if (DynamicColorMod.settings.autoApplyFavColor && p != null && p.RaceProps.Humanlike && p.story != null && p.story.favoriteColor != null) { nameColor = p.story.favoriteColor.color; nameBold = DynamicColorMod.settings.autoApplyBold; }
-                        else if (p != null && DynamicColorMod.settings.useFactionColor && p.Faction != null) { nameColor = p.Faction.Color; }
-                        else if (p != null && !p.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { nameColor = DynamicColorMod.settings.nonHumanDefaultColor; }
-
-                        string coloredDialogue = DynamicColorMod.ColorizeString(rawDialogue);
-                        string cleanDialogue = DynamicColorMod.ColorizeStringInternal(rawDialogue, true);
-
-                        DynamicColorMod.SessionHistory.Add(new LogItem()
-                        {
-                            PawnName = cleanName,
-                            Content = coloredDialogue,
-                            CleanContent = cleanDialogue,
-                            OriginalContent = rawDialogue,
-                            NameColor = nameColor,
-                            NameBold = nameBold,
-                            Timestamp = DateTime.Now.ToShortTimeString(),
-                            SourceObject = msg,
-                            SpeakerPawn = p // [新增] 保存用于头像绘制的Pawn
-                        });
-                        DynamicColorMod.CurrentProcessingPawn = null;
-                    }
-
-                    if (DynamicColorMod.SessionHistory.Count >= MaxHistoryCount)
-                    {
-                        if (DynamicColorMod.settings.autoExportHistory) DynamicColorMod.ExportChatLog(true, true);
-                        DynamicColorMod.ClearSessionHistory();
-                    }
+                    Type cacheType = AccessTools.TypeByName("RimTalk.Data.Cache");
+                    if (cacheType != null)
+                        _methodGetPlayer = AccessTools.Method(cacheType, "GetPlayer");
                 }
+
+                Pawn playerPawn = _methodGetPlayer?.Invoke(null, null) as Pawn;
+                if (playerPawn != initiator) return;
+
+                string pawnName = initiator.LabelShort ?? "Player";
+                DynamicColorMod.RecordToSessionHistory(initiator, pawnName, message);
             }
             catch (Exception) { }
         }
@@ -1609,6 +1903,7 @@ namespace RimTalkDynamicColors
                 if (!enabled) return;
             }
             DynamicColorMod.IsDrawingBubble = true;
+            DynamicColorMod.lastBubbleFrame = Time.frameCount;
         }
 
         public static void Postfix()

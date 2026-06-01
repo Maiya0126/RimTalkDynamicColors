@@ -82,4 +82,8 @@
 	<RTDC_Alpha>透明度</RTDC_Alpha>
 	<RTDC_Preview>预览 Preview</RTDC_Preview>
 	<RTDC_Reset>重置</RTDC_Reset>
+	<RTDC_BracketStyleSettings>自定义符号样式</RTDC_BracketStyleSettings>
+	<RTDC_BracketStyleDesc>为特定符号对内的文本设置独立颜色和样式。优先级高于默认动作染色和颜文字染色。\n例如：添加「 」用于心声，添加~ ~用于动作。</RTDC_BracketStyleDesc>
+	<RTDC_ClearBracketStyles>清空符号样式</RTDC_ClearBracketStyles>
+	<RTDC_Italic>斜体</RTDC_Italic>
 </LanguageData>

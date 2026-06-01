@@ -84,4 +84,8 @@
 	<RTDC_Alpha>Alpha</RTDC_Alpha>
 	<RTDC_Preview>Preview</RTDC_Preview>
 	<RTDC_Reset>Reset</RTDC_Reset>
+	<RTDC_BracketStyleSettings>Custom Bracket Styles</RTDC_BracketStyleSettings>
+	<RTDC_BracketStyleDesc>Set independent color and style for text inside specific symbol pairs. Higher priority than default action/kaomoji styling.\ne.g. Add 「 」for inner thoughts, ~ ~for actions.</RTDC_BracketStyleDesc>
+	<RTDC_ClearBracketStyles>Clear Bracket Styles</RTDC_ClearBracketStyles>
+	<RTDC_Italic>Italic</RTDC_Italic>
 </LanguageData>
