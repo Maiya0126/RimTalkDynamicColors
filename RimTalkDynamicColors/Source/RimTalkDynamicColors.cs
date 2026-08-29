@@ -347,11 +347,12 @@ namespace RimTalkDynamicColors
                 Type overlayType = AccessTools.TypeByName("RimTalk.UI.Overlay");
                 if (overlayType != null)
                 {
-                    MethodInfo targetMethod = AccessTools.Method(overlayType, "UpdateAndRecalculateCache");
+                    MethodInfo targetMethod = AccessTools.Method(overlayType, "DrawMessageLog");
                     if (targetMethod != null)
                     {
                         harmony.Patch(targetMethod,
-                            postfix: new HarmonyMethod(typeof(Patch_UpdateAndRecalculateCache_Manual), nameof(Patch_UpdateAndRecalculateCache_Manual.Postfix))
+                            prefix: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Prefix)),
+                            postfix: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Postfix))
                         );
                     }
                 }
@@ -448,6 +449,16 @@ namespace RimTalkDynamicColors
         public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue, Pawn recipient = null, string recipientName = null, Guid talkId = default)
         {
             CurrentProcessingPawn = pawn;
+
+            if (recipient == null && SessionHistory.Count > 0)
+            {
+                var prevItem = SessionHistory[SessionHistory.Count - 1];
+                if (prevItem != null && prevItem.SpeakerPawn != pawn)
+                {
+                    recipient = prevItem.SpeakerPawn;
+                    recipientName = prevItem.PawnName;
+                }
+            }
 
             Color nameColor = Color.white;
             bool nameBold = false;
@@ -1850,25 +1861,46 @@ namespace RimTalkDynamicColors
         }
     }
 
-    public static class Patch_UpdateAndRecalculateCache_Manual
+    public static class Patch_DrawMessageLog_Manual
     {
         private static FieldInfo _cachedMessagesField;
         private static FieldInfo _pawnNameField;
         private static FieldInfo _pawnInstField;
         private static FieldInfo _nameWidthField;
         private static FieldInfo _dialogueField;
+        private static FieldInfo _isCacheDirtyField;
+        private static MethodInfo _recalcMethod;
 
-        public static void Postfix(object __instance)
+        public static void Prefix(object __instance)
         {
+            DynamicColorMod.IsDrawingChatLog = true;
+            DynamicColorMod.lastChatLogFrame = Time.frameCount;
+
             if (__instance != null)
             {
                 try
                 {
+                    if (_isCacheDirtyField == null) _isCacheDirtyField = AccessTools.Field(__instance.GetType(), "_isCacheDirty");
+                    if (_recalcMethod == null) _recalcMethod = AccessTools.Method(__instance.GetType(), "UpdateAndRecalculateCache");
+
+                    if (_isCacheDirtyField != null && _recalcMethod != null)
+                    {
+                        bool isDirty = (bool)_isCacheDirtyField.GetValue(__instance);
+                        Log.Warning($"[RimTalk DynamicColors] Prefix triggered. isDirty={isDirty}");
+                        if (isDirty)
+                        {
+                            _recalcMethod.Invoke(__instance, null);
+                            _isCacheDirtyField.SetValue(__instance, false);
+                            Log.Warning($"[RimTalk DynamicColors] Cache recalculated and set dirty to false.");
+                        }
+                    }
+
                     if (_cachedMessagesField == null) _cachedMessagesField = AccessTools.Field(__instance.GetType(), "_cachedMessagesForLog");
-                    if (_cachedMessagesField == null) return;
+                    if (_cachedMessagesField == null) { Log.Warning("[RimTalk DynamicColors] _cachedMessagesForLog field not found!"); return; }
                     var list = _cachedMessagesField.GetValue(__instance) as System.Collections.IList;
                     if (list != null)
                     {
+                        Log.Warning($"[RimTalk DynamicColors] Found list with {list.Count} items.");
                         for (int i = 0; i < list.Count; i++)
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
@@ -1926,12 +1958,36 @@ namespace RimTalkDynamicColors
                             Color nameColor = DynamicColorMod.GetPawnCustomColor(speaker, rawName, out isSpeakerBold);
                             string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
 
-                            if (DynamicColorMod.settings.showDirectionalArrow && matchedItem != null && matchedItem.RecipientPawn != null)
+                            Log.Warning($"[RimTalk DynamicColors] Msg loop: rawName={rawName}, speaker={speaker?.LabelShort}, hasMatchedItem={(matchedItem != null)}, recipientPawn={matchedItem?.RecipientPawn?.LabelShort}, recipientName={matchedItem?.RecipientName}");
+
+                            Pawn recipientPawn = null;
+                            string recipientName = "";
+
+                            if (matchedItem != null && matchedItem.RecipientPawn != null)
+                            {
+                                recipientPawn = matchedItem.RecipientPawn;
+                                recipientName = matchedItem.RecipientName;
+                            }
+                            else if (i + 1 < list.Count)
+                            {
+                                var prevMsg = list[i + 1];
+                                if (prevMsg != null)
+                                {
+                                    Pawn prevSpeaker = _pawnInstField?.GetValue(prevMsg) as Pawn;
+                                    if (prevSpeaker != null && prevSpeaker != speaker)
+                                    {
+                                        recipientPawn = prevSpeaker;
+                                        recipientName = prevSpeaker.LabelShort;
+                                    }
+                                }
+                            }
+
+                            if (DynamicColorMod.settings.showDirectionalArrow && recipientPawn != null)
                             {
                                 string badge = "";
-                                if (DynamicColorMod.settings.enableRelationEffects && matchedItem.SpeakerPawn != null && matchedItem.RecipientPawn != null)
+                                if (DynamicColorMod.settings.enableRelationEffects && speaker != null)
                                 {
-                                    badge = DynamicColorMod.GetRelationshipPrefix(matchedItem.SpeakerPawn, matchedItem.RecipientPawn);
+                                    badge = DynamicColorMod.GetRelationshipPrefix(speaker, recipientPawn);
                                 }
 
                                 Color vanillaColor = Color.white;
@@ -1939,11 +1995,11 @@ namespace RimTalkDynamicColors
                                 string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
 
                                 bool isRecipientBold;
-                                Color recipientColor = DynamicColorMod.GetPawnCustomColor(matchedItem.RecipientPawn, matchedItem.RecipientName, out isRecipientBold);
+                                Color recipientColor = DynamicColorMod.GetPawnCustomColor(recipientPawn, recipientName, out isRecipientBold);
                                 string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
 
-                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{matchedItem.RecipientName}</color>";
-                                string plainDisplayName = $"[{badge}{rawName} -> {matchedItem.RecipientName}]";
+                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{recipientName}</color>";
+                                string plainDisplayName = $"[{badge}{rawName} -> {recipientName}]";
 
                                 _pawnNameField.SetValue(msg, formattedDisplayName);
 
@@ -1971,9 +2027,14 @@ namespace RimTalkDynamicColors
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"[RimTalk DynamicColors] Error in UpdateAndRecalculateCache Postfix: {ex}");
+                    Log.Error($"[RimTalk DynamicColors] Error in DrawMessageLog Prefix: {ex}");
                 }
             }
+        }
+
+        public static void Postfix(object __instance)
+        {
+            DynamicColorMod.IsDrawingChatLog = false;
         }
     }
 
