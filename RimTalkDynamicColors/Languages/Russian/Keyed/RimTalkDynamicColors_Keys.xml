@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
+	<RTDC_SettingsTitle>Настройки RimTalk DynamicColors</RTDC_SettingsTitle>
+
+	<RTDC_HistoryTab>Журнал DynamicColors</RTDC_HistoryTab>
+	<RTDC_ChatHistoryViewer>Просмотр истории чата</RTDC_ChatHistoryViewer>
+
+	<RTDC_BufferStatus>Буфер: {0}/{1}</RTDC_BufferStatus>
+	<RTDC_QuickAutoExport>Автоэкспорт при заполнении</RTDC_QuickAutoExport>
+	<RTDC_QuickAutoExportTip>Если включено, журнал будет автоматически экспортирован в HTML при достижении лимита в 200 записей.\nЕсли выключено, журнал будет просто очищен без сохранения.</RTDC_QuickAutoExportTip>
+
+	<RTDC_BasicSettings>Основные настройки</RTDC_BasicSettings>
+	<RTDC_HistorySettings>Настройки истории</RTDC_HistorySettings>
+	<RTDC_EnableMod>Включить мод</RTDC_EnableMod>
+	<RTDC_EnableModDesc>Включить или отключить все функции окрашивания.</RTDC_EnableModDesc>
+	<RTDC_ShowHistoryTab>Показать вкладку истории</RTDC_ShowHistoryTab>
+	<RTDC_ShowHistoryTabDesc>Показать вкладку «Журнал чата» на главной панели кнопок.</RTDC_ShowHistoryTabDesc>
+	<RTDC_AutoExportHistory>Автоэкспорт истории</RTDC_AutoExportHistory>
+	<RTDC_AutoExportHistoryDesc>Автоматически экспортировать журнал в HTML при достижении лимита (200).</RTDC_AutoExportHistoryDesc>
+	<RTDC_ShowAvatarInHistory>Показывать аватар в истории</RTDC_ShowAvatarInHistory>
+	<RTDC_EnableBubblesSync>Синхронизация цвета пузырей</RTDC_EnableBubblesSync>
+	<RTDC_EnableBubblesSyncDesc>Применять цвета к моду Interaction Bubbles.</RTDC_EnableBubblesSyncDesc>
+	<RTDC_BubblesNotDetected>Мод Bubbles не обнаружен</RTDC_BubblesNotDetected>
+	<RTDC_EnableRimTalkNameColoring>Окрашивание имён RimTalk</RTDC_EnableRimTalkNameColoring>
+	<RTDC_EnableRimTalkNameColoringDesc>Окрашивать имена в диалоговом окне RimTalk.</RTDC_EnableRimTalkNameColoringDesc>
+	<RTDC_EnableChatColoring>Окрашивание содержимого чата</RTDC_EnableChatColoring>
+	<RTDC_EnableChatColoringDesc>Окрашивать ключевые слова и действия в чате.</RTDC_EnableChatColoringDesc>
+	<RTDC_OpenHistoryWindow>Открыть окно истории</RTDC_OpenHistoryWindow>
+	<RTDC_OpenHistoryWindowDesc>Открыть плавающее окно для просмотра журналов чата.</RTDC_OpenHistoryWindowDesc>
+	<RTDC_ColorRules>Правила цвета</RTDC_ColorRules>
+	<RTDC_EnableForPrisoners>Заключённые</RTDC_EnableForPrisoners>
+	<RTDC_EnableForSlaves>Рабы</RTDC_EnableForSlaves>
+	<RTDC_EnableForGuests>Гости</RTDC_EnableForGuests>
+	<RTDC_EnableForFriendlies>Дружественные</RTDC_EnableForFriendlies>
+	<RTDC_EnableForEnemies>Враги</RTDC_EnableForEnemies>
+	<RTDC_EnableForNonHumans>Не люди (животные/мехи)</RTDC_EnableForNonHumans>
+	<RTDC_SelectNonHumanColor>Цвет не-людей</RTDC_SelectNonHumanColor>
+	<RTDC_UseFactionColor>Использовать цвет фракции</RTDC_UseFactionColor>
+	<RTDC_UseFactionColorDesc>Приоритетно использовать цвет фракции персонажа.</RTDC_UseFactionColorDesc>
+	<RTDC_AutoFavColor>Использовать любимый цвет</RTDC_AutoFavColor>
+	<RTDC_AutoFavColorDesc>Использовать любимый цвет персонажа (DLC), если доступен.</RTDC_AutoFavColorDesc>
+	<RTDC_AutoApplyBold>Также применять жирный</RTDC_AutoApplyBold>
+	<RTDC_StyleSettings>Настройки стиля</RTDC_StyleSettings>
+	<RTDC_EnableSelfTalkColor>Окрашивание действий/мыслей (*...*)</RTDC_EnableSelfTalkColor>
+	<RTDC_SelectSelfTalkColor>Цвет действий</RTDC_SelectSelfTalkColor>
+	<RTDC_Bold>Жирный</RTDC_Bold>
+	<RTDC_SelfTalkItalic>Курсив</RTDC_SelfTalkItalic>
+	<RTDC_EnableKaomojiColoring>Окрашивание каомодзи (>_&lt;)</RTDC_EnableKaomojiColoring>
+	<RTDC_SelectKaomojiColor>Цвет каомодзи</RTDC_SelectKaomojiColor>
+	<RTDC_EnableRainbow>Радужный эффект</RTDC_EnableRainbow>
+	<RTDC_EnableRainbowDesc>Включить анимированный радужный эффект текста.</RTDC_EnableRainbowDesc>
+	<RTDC_EnableBW>Чёрно-белый эффект</RTDC_EnableBW>
+	<RTDC_EnableBWDesc>Включить чёрно-белый эффект текста.</RTDC_EnableBWDesc>
+	<RTDC_DrinkSoup>выпил чистый суп, и текст вернулся в норму.</RTDC_DrinkSoup>
+	<RTDC_DataManage>Управление данными</RTDC_DataManage>
+	<RTDC_ManageNames>Свои цвета имён</RTDC_ManageNames>
+	<RTDC_ManageKeywords>Свои ключевые слова</RTDC_ManageKeywords>
+	<RTDC_Add>Добавить</RTDC_Add>
+	<RTDC_ImportColonists>Импорт поселенцев</RTDC_ImportColonists>
+	<RTDC_ClearNames>Очистить имена</RTDC_ClearNames>
+	<RTDC_ClearAll>Очистить всё</RTDC_ClearAll>
+	<RTDC_Cleared>Данные очищены</RTDC_Cleared>
+	<RTDC_ImportDone>Импорт завершён</RTDC_ImportDone>
+	<RTDC_HistoryInfo>Отображение последних журналов разговоров.</RTDC_HistoryInfo>
+	<RTDC_ExportPathSetting>Путь экспорта</RTDC_ExportPathSetting>
+	<RTDC_SetPath>Указать путь</RTDC_SetPath>
+	<RTDC_OpenFolder>Открыть папку</RTDC_OpenFolder>
+	<RTDC_ResetPath>Сбросить по умолчанию</RTDC_ResetPath>
+	<RTDC_CurrentPathLabel>Текущий:</RTDC_CurrentPathLabel>
+	<RTDC_PathInvalid>Путь недействителен или не существует.</RTDC_PathInvalid>
+	<RTDC_LogTools>Инструменты журнала</RTDC_LogTools>
+	<RTDC_CopyPlain>Копировать (текст)</RTDC_CopyPlain>
+	<RTDC_CopyRich>Копировать (формат.)</RTDC_CopyRich>
+	<RTDC_ExportTxt>Экспорт TXT</RTDC_ExportTxt>
+	<RTDC_ExportHtml>Экспорт HTML</RTDC_ExportHtml>
+	<RTDC_Copied>Скопировано в буфер обмена.</RTDC_Copied>
+	<RTDC_NoLogFound>Нет журналов для экспорта.</RTDC_NoLogFound>
+	<RTDC_AutoExportMsg>Журнал заполнен, автоэкспорт в: {0}</RTDC_AutoExportMsg>
+	<RTDC_ExportSuccess>Экспорт успешен: {0}</RTDC_ExportSuccess>
+	<RTDC_SelectColor>Выбрать цвет</RTDC_SelectColor>
+	<RTDC_Alpha>Прозрачность</RTDC_Alpha>
+	<RTDC_Preview>Предпросмотр</RTDC_Preview>
+	<RTDC_Reset>Сброс</RTDC_Reset>
+	<RTDC_BracketStyleSettings>Свои стили скобок</RTDC_BracketStyleSettings>
+	<RTDC_BracketStyleDesc>Задать независимый цвет и стиль для текста внутри определённых пар символов. Приоритет выше, чем у стандартных стилей действий/каомодзи.\nНапр.: добавьте 「 」для мыслей, ~ ~для действий.</RTDC_BracketStyleDesc>
+	<RTDC_ClearBracketStyles>Очистить стили скобок</RTDC_ClearBracketStyles>
+	<RTDC_Italic>Курсив</RTDC_Italic>
+</LanguageData>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
+	<RTDC_SettingsTitle>RimTalk DynamicColors 設定</RTDC_SettingsTitle>
+
+	<RTDC_HistoryTab>DynamicColors チャットログ</RTDC_HistoryTab>
+	<RTDC_ChatHistoryViewer>チャット履歴ビューア</RTDC_ChatHistoryViewer>
+
+	<RTDC_BufferStatus>バッファ: {0}/{1}</RTDC_BufferStatus>
+	<RTDC_QuickAutoExport>上限時自動出力</RTDC_QuickAutoExport>
+	<RTDC_QuickAutoExportTip>有効にすると、200件に達した時点で自動的にHTMLファイルに出力されます。\n無効の場合、保存せずにログをクリアします。</RTDC_QuickAutoExportTip>
+
+	<RTDC_BasicSettings>基本設定</RTDC_BasicSettings>
+	<RTDC_HistorySettings>履歴設定</RTDC_HistorySettings>
+	<RTDC_EnableMod>Mod を有効化</RTDC_EnableMod>
+	<RTDC_EnableModDesc>すべての染色機能をオン/オフします。</RTDC_EnableModDesc>
+	<RTDC_ShowHistoryTab>履歴タブを表示</RTDC_ShowHistoryTab>
+	<RTDC_ShowHistoryTabDesc>メインボタンバーに「チャットログ」タブを表示します。</RTDC_ShowHistoryTabDesc>
+	<RTDC_AutoExportHistory>履歴自動出力</RTDC_AutoExportHistory>
+	<RTDC_AutoExportHistoryDesc>上限(200件)に達したときにログをHTMLに自動出力します。</RTDC_AutoExportHistoryDesc>
+	<RTDC_ShowAvatarInHistory>履歴にアバターを表示</RTDC_ShowAvatarInHistory>
+	<RTDC_EnableBubblesSync>吹き出しの色を同期</RTDC_EnableBubblesSync>
+	<RTDC_EnableBubblesSyncDesc>Interaction Bubbles Mod に色を適用します。</RTDC_EnableBubblesSyncDesc>
+	<RTDC_BubblesNotDetected>Bubbles Mod が検出されません</RTDC_BubblesNotDetected>
+	<RTDC_EnableRimTalkNameColoring>RimTalk 名前の色付け</RTDC_EnableRimTalkNameColoring>
+	<RTDC_EnableRimTalkNameColoringDesc>RimTalk ダイアログの名前を色付けします。</RTDC_EnableRimTalkNameColoringDesc>
+	<RTDC_EnableChatColoring>チャット内容の色付け</RTDC_EnableChatColoring>
+	<RTDC_EnableChatColoringDesc>チャット内のキーワードとアクションを色付けします。</RTDC_EnableChatColoringDesc>
+	<RTDC_OpenHistoryWindow>履歴ウィンドウを開く</RTDC_OpenHistoryWindow>
+	<RTDC_OpenHistoryWindowDesc>チャットログを表示するフローティングウィンドウを開きます。</RTDC_OpenHistoryWindowDesc>
+	<RTDC_ColorRules>色のルール</RTDC_ColorRules>
+	<RTDC_EnableForPrisoners>囚人</RTDC_EnableForPrisoners>
+	<RTDC_EnableForSlaves>奴隷</RTDC_EnableForSlaves>
+	<RTDC_EnableForGuests>ゲスト</RTDC_EnableForGuests>
+	<RTDC_EnableForFriendlies>友好派閥</RTDC_EnableForFriendlies>
+	<RTDC_EnableForEnemies>敵対派閥</RTDC_EnableForEnemies>
+	<RTDC_EnableForNonHumans>非ヒューマン (動物/メカ)</RTDC_EnableForNonHumans>
+	<RTDC_SelectNonHumanColor>非ヒューマンの色</RTDC_SelectNonHumanColor>
+	<RTDC_UseFactionColor>派閥の色を使用</RTDC_UseFactionColor>
+	<RTDC_UseFactionColorDesc>キャラクターの派閥の色を優先的に使用します。</RTDC_UseFactionColorDesc>
+	<RTDC_AutoFavColor>お気に入りの色を使用</RTDC_AutoFavColor>
+	<RTDC_AutoFavColorDesc>キャラクターのお気に入りの色(DLC)があれば使用します。</RTDC_AutoFavColorDesc>
+	<RTDC_AutoApplyBold>太字も適用</RTDC_AutoApplyBold>
+	<RTDC_StyleSettings>スタイル設定</RTDC_StyleSettings>
+	<RTDC_EnableSelfTalkColor>アクション/思考の色付け (*...*)</RTDC_EnableSelfTalkColor>
+	<RTDC_SelectSelfTalkColor>アクションの色</RTDC_SelectSelfTalkColor>
+	<RTDC_Bold>太字</RTDC_Bold>
+	<RTDC_SelfTalkItalic>斜体</RTDC_SelfTalkItalic>
+	<RTDC_EnableKaomojiColoring>顔文字の色付け (>_&lt;)</RTDC_EnableKaomojiColoring>
+	<RTDC_SelectKaomojiColor>顔文字の色</RTDC_SelectKaomojiColor>
+	<RTDC_EnableRainbow>レインボーエフェクト</RTDC_EnableRainbow>
+	<RTDC_EnableRainbowDesc>アニメーションする虹色テキスト効果を有効にします。</RTDC_EnableRainbowDesc>
+	<RTDC_EnableBW>白黒エフェクト</RTDC_EnableBW>
+	<RTDC_EnableBWDesc>白黒テキスト効果を有効にします。</RTDC_EnableBWDesc>
+	<RTDC_DrinkSoup>クリアスープを飲み、テキストが正常に戻りました。</RTDC_DrinkSoup>
+	<RTDC_DataManage>データ管理</RTDC_DataManage>
+	<RTDC_ManageNames>カスタム名前の色</RTDC_ManageNames>
+	<RTDC_ManageKeywords>カスタムキーワード</RTDC_ManageKeywords>
+	<RTDC_Add>追加</RTDC_Add>
+	<RTDC_ImportColonists>入植者をインポート</RTDC_ImportColonists>
+	<RTDC_ClearNames>名前をクリア</RTDC_ClearNames>
+	<RTDC_ClearAll>すべてクリア</RTDC_ClearAll>
+	<RTDC_Cleared>データをクリアしました</RTDC_Cleared>
+	<RTDC_ImportDone>インポート完了</RTDC_ImportDone>
+	<RTDC_HistoryInfo>最近の会話ログを表示しています。</RTDC_HistoryInfo>
+	<RTDC_ExportPathSetting>出力パス</RTDC_ExportPathSetting>
+	<RTDC_SetPath>パスを設定</RTDC_SetPath>
+	<RTDC_OpenFolder>フォルダを開く</RTDC_OpenFolder>
+	<RTDC_ResetPath>デフォルトに戻す</RTDC_ResetPath>
+	<RTDC_CurrentPathLabel>現在:</RTDC_CurrentPathLabel>
+	<RTDC_PathInvalid>パスが無効か存在しません。</RTDC_PathInvalid>
+	<RTDC_LogTools>ログツール</RTDC_LogTools>
+	<RTDC_CopyPlain>コピー (テキスト)</RTDC_CopyPlain>
+	<RTDC_CopyRich>コピー (リッチ)</RTDC_CopyRich>
+	<RTDC_ExportTxt>TXT 出力</RTDC_ExportTxt>
+	<RTDC_ExportHtml>HTML 出力</RTDC_ExportHtml>
+	<RTDC_Copied>クリップボードにコピーしました。</RTDC_Copied>
+	<RTDC_NoLogFound>出力できるログがありません。</RTDC_NoLogFound>
+	<RTDC_AutoExportMsg>ログが満杯です。自動出力先: {0}</RTDC_AutoExportMsg>
+	<RTDC_ExportSuccess>出力成功: {0}</RTDC_ExportSuccess>
+	<RTDC_SelectColor>色を選択</RTDC_SelectColor>
+	<RTDC_Alpha>透明度</RTDC_Alpha>
+	<RTDC_Preview>プレビュー</RTDC_Preview>
+	<RTDC_Reset>リセット</RTDC_Reset>
+	<RTDC_BracketStyleSettings>カスタム記号スタイル</RTDC_BracketStyleSettings>
+	<RTDC_BracketStyleDesc>特定の記号ペア内のテキストに独立した色とスタイルを設定します。デフォルトのアクション/顔文字スタイルより優先されます。\n例: 「 」を心の声用に、~ ~をアクション用に追加。</RTDC_BracketStyleDesc>
+	<RTDC_ClearBracketStyles>記号スタイルをクリア</RTDC_ClearBracketStyles>
+	<RTDC_Italic>斜体</RTDC_Italic>
+</LanguageData>

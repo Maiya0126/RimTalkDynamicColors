@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowStatus.label>レインボースピーチ</RimTalk_RainbowStatus.label>
+  <RimTalk_RainbowStatus.description>魔法のレインボーキャンディを食べた。話す言葉がすべて七色に輝く！</RimTalk_RainbowStatus.description>
+
+  <RimTalk_BlackWhiteStatus.label>ノワールスピーチ</RimTalk_BlackWhiteStatus.label>
+  <RimTalk_BlackWhiteStatus.description>神秘的な白黒カプセルを飲んだ。言葉がピアノの鍵盤のように白黒になる。</RimTalk_BlackWhiteStatus.description>
+</LanguageData>

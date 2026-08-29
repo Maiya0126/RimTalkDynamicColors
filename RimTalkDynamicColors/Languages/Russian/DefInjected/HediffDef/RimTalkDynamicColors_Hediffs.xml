@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowStatus.label>Радужная речь</RimTalk_RainbowStatus.label>
+  <RimTalk_RainbowStatus.description>Съел волшебную радужную конфету. Каждое слово переливается семью цветами!</RimTalk_RainbowStatus.description>
+
+  <RimTalk_BlackWhiteStatus.label>Нуарная речь</RimTalk_BlackWhiteStatus.label>
+  <RimTalk_BlackWhiteStatus.description>Съел загадочную ч/б пилюлю. Речь становится строго чёрно-белой.</RimTalk_BlackWhiteStatus.description>
+</LanguageData>

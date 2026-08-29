@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowCandy.label>レインボーキャンディ</RimTalk_RainbowCandy.label>
+  <RimTalk_RainbowCandy.description>五色に輝くキャンディ。食べた人の言葉が虹色になると言われている。</RimTalk_RainbowCandy.description>
+
+  <RimTalk_BlackWhitePill.label>白黒カプセル</RimTalk_BlackWhitePill.label>
+  <RimTalk_BlackWhitePill.description>半分が黒、半分が白の神秘的なカプセル。飲むと言葉が不気味なノワール調になる。</RimTalk_BlackWhitePill.description>
+
+  <RimTalk_ClearSoup.label>クリアスープ</RimTalk_ClearSoup.label>
+  <RimTalk_ClearSoup.description>ほのかに薬草の香りがする透明な水。飲むと心が落ち着き、言葉の幻覚がすべて消える。</RimTalk_ClearSoup.description>
+</LanguageData>

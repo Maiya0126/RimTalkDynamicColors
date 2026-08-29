@@ -52,7 +52,7 @@
 	<RTDC_EnableRainbowDesc>Enable animated rainbow text status effect.</RTDC_EnableRainbowDesc>
 	<RTDC_EnableBW>Black &amp; White Effect</RTDC_EnableBW>
 	<RTDC_EnableBWDesc>Enable black and white text status effect.</RTDC_EnableBWDesc>
-	<RTDC_DrinkSoup>drank the cure soup and text returned to normal.</RTDC_DrinkSoup>
+	<RTDC_DrinkSoup>drank the clear soup and text returned to normal.</RTDC_DrinkSoup>
 	<RTDC_DataManage>Data Management</RTDC_DataManage>
 	<RTDC_ManageNames>Custom Name Colors</RTDC_ManageNames>
 	<RTDC_ManageKeywords>Custom Keywords</RTDC_ManageKeywords>
@@ -62,8 +62,6 @@
 	<RTDC_ClearAll>Clear All Data</RTDC_ClearAll>
 	<RTDC_Cleared>Data Cleared</RTDC_Cleared>
 	<RTDC_ImportDone>Import Done</RTDC_ImportDone>
-	<RTDC_HistoryTab>Chat Log</RTDC_HistoryTab>
-	<RTDC_ChatHistoryViewer>Chat History Viewer</RTDC_ChatHistoryViewer>
 	<RTDC_HistoryInfo>Displaying recent conversation logs.</RTDC_HistoryInfo>
 	<RTDC_ExportPathSetting>Export Path</RTDC_ExportPathSetting>
 	<RTDC_SetPath>Set Path</RTDC_SetPath>

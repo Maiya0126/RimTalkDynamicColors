@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowStatus.label>무지개 언어</RimTalk_RainbowStatus.label>
+  <RimTalk_RainbowStatus.description>마법의 무지개 사탕을 먹었다. 말하는 모든 단어가 일곱 색으로 빛난다!</RimTalk_RainbowStatus.description>
+
+  <RimTalk_BlackWhiteStatus.label>누아르 언어</RimTalk_BlackWhiteStatus.label>
+  <RimTalk_BlackWhiteStatus.description>신비로운 흑백 알약을 먹었다. 말이 피아노 건반처럼 흑백으로 변한다.</RimTalk_BlackWhiteStatus.description>
+</LanguageData>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
+	<RTDC_SettingsTitle>RimTalk DynamicColors 설정</RTDC_SettingsTitle>
+
+	<RTDC_HistoryTab>DynamicColors 채팅 로그</RTDC_HistoryTab>
+	<RTDC_ChatHistoryViewer>채팅 기록 뷰어</RTDC_ChatHistoryViewer>
+
+	<RTDC_BufferStatus>버퍼: {0}/{1}</RTDC_BufferStatus>
+	<RTDC_QuickAutoExport>한도 도달 시 자동 출력</RTDC_QuickAutoExport>
+	<RTDC_QuickAutoExportTip>활성화 시 200건에 도달하면 자동으로 HTML 파일로 출력합니다.\n비활성화 시 저장 없이 로그를 삭제합니다.</RTDC_QuickAutoExportTip>
+
+	<RTDC_BasicSettings>기본 설정</RTDC_BasicSettings>
+	<RTDC_HistorySettings>기록 설정</RTDC_HistorySettings>
+	<RTDC_EnableMod>Mod 활성화</RTDC_EnableMod>
+	<RTDC_EnableModDesc>모든 색상 기능을 켜고 끕니다.</RTDC_EnableModDesc>
+	<RTDC_ShowHistoryTab>기록 탭 표시</RTDC_ShowHistoryTab>
+	<RTDC_ShowHistoryTabDesc>메인 버튼 바에 '채팅 로그' 탭을 표시합니다.</RTDC_ShowHistoryTabDesc>
+	<RTDC_AutoExportHistory>기록 자동 출력</RTDC_AutoExportHistory>
+	<RTDC_AutoExportHistoryDesc>한도(200건)에 도달하면 로그를 HTML로 자동 출력합니다.</RTDC_AutoExportHistoryDesc>
+	<RTDC_ShowAvatarInHistory>기록에 아바타 표시</RTDC_ShowAvatarInHistory>
+	<RTDC_EnableBubblesSync>말풍선 색상 동기화</RTDC_EnableBubblesSync>
+	<RTDC_EnableBubblesSyncDesc>Interaction Bubbles 모드에 색상을 적용합니다.</RTDC_EnableBubblesSyncDesc>
+	<RTDC_BubblesNotDetected>Bubbles 모드가 감지되지 않음</RTDC_BubblesNotDetected>
+	<RTDC_EnableRimTalkNameColoring>RimTalk 이름 색상</RTDC_EnableRimTalkNameColoring>
+	<RTDC_EnableRimTalkNameColoringDesc>RimTalk 대화창의 이름에 색상을 적용합니다.</RTDC_EnableRimTalkNameColoringDesc>
+	<RTDC_EnableChatColoring>채팅 내용 색상</RTDC_EnableChatColoring>
+	<RTDC_EnableChatColoringDesc>채팅의 키워드와 액션에 색상을 적용합니다.</RTDC_EnableChatColoringDesc>
+	<RTDC_OpenHistoryWindow>기록 창 열기</RTDC_OpenHistoryWindow>
+	<RTDC_OpenHistoryWindowDesc>채팅 로그를 볼 수 있는 플로팅 창을 엽니다.</RTDC_OpenHistoryWindowDesc>
+	<RTDC_ColorRules>색상 규칙</RTDC_ColorRules>
+	<RTDC_EnableForPrisoners>수감자</RTDC_EnableForPrisoners>
+	<RTDC_EnableForSlaves>노예</RTDC_EnableForSlaves>
+	<RTDC_EnableForGuests>방문객</RTDC_EnableForGuests>
+	<RTDC_EnableForFriendlies>우호 세력</RTDC_EnableForFriendlies>
+	<RTDC_EnableForEnemies>적대 세력</RTDC_EnableForEnemies>
+	<RTDC_EnableForNonHumans>비인간 (동물/메크)</RTDC_EnableForNonHumans>
+	<RTDC_SelectNonHumanColor>비인간 색상</RTDC_SelectNonHumanColor>
+	<RTDC_UseFactionColor>세력 색상 사용</RTDC_UseFactionColor>
+	<RTDC_UseFactionColorDesc>캐릭터 소속 세력의 색상을 우선 사용합니다.</RTDC_UseFactionColorDesc>
+	<RTDC_AutoFavColor>선호 색상 사용</RTDC_AutoFavColor>
+	<RTDC_AutoFavColorDesc>캐릭터의 선호 색상(DLC)이 있으면 사용합니다.</RTDC_AutoFavColorDesc>
+	<RTDC_AutoApplyBold>굵게도 적용</RTDC_AutoApplyBold>
+	<RTDC_StyleSettings>스타일 설정</RTDC_StyleSettings>
+	<RTDC_EnableSelfTalkColor>액션/생각 색상 (*...*)</RTDC_EnableSelfTalkColor>
+	<RTDC_SelectSelfTalkColor>액션 색상</RTDC_SelectSelfTalkColor>
+	<RTDC_Bold>굵게</RTDC_Bold>
+	<RTDC_SelfTalkItalic>기울임꼴</RTDC_SelfTalkItalic>
+	<RTDC_EnableKaomojiColoring>이모티콘 색상 (>_&lt;)</RTDC_EnableKaomojiColoring>
+	<RTDC_SelectKaomojiColor>이모티콘 색상</RTDC_SelectKaomojiColor>
+	<RTDC_EnableRainbow>무지개 효과</RTDC_EnableRainbow>
+	<RTDC_EnableRainbowDesc>애니메이션 무지개 텍스트 효과를 활성화합니다.</RTDC_EnableRainbowDesc>
+	<RTDC_EnableBW>흑백 효과</RTDC_EnableBW>
+	<RTDC_EnableBWDesc>흑백 텍스트 효과를 활성화합니다.</RTDC_EnableBWDesc>
+	<RTDC_DrinkSoup>맑은 수프를 마시고 텍스트가 정상으로 돌아왔습니다.</RTDC_DrinkSoup>
+	<RTDC_DataManage>데이터 관리</RTDC_DataManage>
+	<RTDC_ManageNames>커스텀 이름 색상</RTDC_ManageNames>
+	<RTDC_ManageKeywords>커스텀 키워드</RTDC_ManageKeywords>
+	<RTDC_Add>추가</RTDC_Add>
+	<RTDC_ImportColonists>정착민 가져오기</RTDC_ImportColonists>
+	<RTDC_ClearNames>이름 초기화</RTDC_ClearNames>
+	<RTDC_ClearAll>전체 초기화</RTDC_ClearAll>
+	<RTDC_Cleared>데이터가 초기화되었습니다</RTDC_Cleared>
+	<RTDC_ImportDone>가져오기 완료</RTDC_ImportDone>
+	<RTDC_HistoryInfo>최근 대화 로그를 표시합니다.</RTDC_HistoryInfo>
+	<RTDC_ExportPathSetting>출력 경로</RTDC_ExportPathSetting>
+	<RTDC_SetPath>경로 설정</RTDC_SetPath>
+	<RTDC_OpenFolder>폴더 열기</RTDC_OpenFolder>
+	<RTDC_ResetPath>기본값으로 재설정</RTDC_ResetPath>
+	<RTDC_CurrentPathLabel>현재:</RTDC_CurrentPathLabel>
+	<RTDC_PathInvalid>경로가 유효하지 않거나 존재하지 않습니다.</RTDC_PathInvalid>
+	<RTDC_LogTools>로그 도구</RTDC_LogTools>
+	<RTDC_CopyPlain>복사 (텍스트)</RTDC_CopyPlain>
+	<RTDC_CopyRich>복사 (리치)</RTDC_CopyRich>
+	<RTDC_ExportTxt>TXT 출력</RTDC_ExportTxt>
+	<RTDC_ExportHtml>HTML 출력</RTDC_ExportHtml>
+	<RTDC_Copied>클립보드에 복사되었습니다.</RTDC_Copied>
+	<RTDC_NoLogFound>출력할 로그가 없습니다.</RTDC_NoLogFound>
+	<RTDC_AutoExportMsg>로그가 가득 찼습니다. 자동 출력: {0}</RTDC_AutoExportMsg>
+	<RTDC_ExportSuccess>출력 성공: {0}</RTDC_ExportSuccess>
+	<RTDC_SelectColor>색상 선택</RTDC_SelectColor>
+	<RTDC_Alpha>투명도</RTDC_Alpha>
+	<RTDC_Preview>미리보기</RTDC_Preview>
+	<RTDC_Reset>초기화</RTDC_Reset>
+	<RTDC_BracketStyleSettings>커스텀 기호 스타일</RTDC_BracketStyleSettings>
+	<RTDC_BracketStyleDesc>특정 기호 쌍 안의 텍스트에 독립적인 색상과 스타일을 설정합니다. 기본 액션/이모티콘 스타일보다 우선합니다.\n예: 「 」를 속마음용으로, ~ ~를 액션용으로 추가.</RTDC_BracketStyleDesc>
+	<RTDC_ClearBracketStyles>기호 스타일 초기화</RTDC_ClearBracketStyles>
+	<RTDC_Italic>기울임꼴</RTDC_Italic>
+</LanguageData>

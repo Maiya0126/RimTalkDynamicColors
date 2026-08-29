@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+  <RimTalk_RainbowCandy.label>무지개 사탕</RimTalk_RainbowCandy.label>
+  <RimTalk_RainbowCandy.description>오색으로 빛나는 사탕. 먹은 사람의 말이 무지개색이 된다고 전해진다.</RimTalk_RainbowCandy.description>
+
+  <RimTalk_BlackWhitePill.label>흑백 알약</RimTalk_BlackWhitePill.label>
+  <RimTalk_BlackWhitePill.description>반은 검고 반은 흰 신비로운 알약. 먹으면 말이 기묘한 누아르 스타일로 변한다.</RimTalk_BlackWhitePill.description>
+
+  <RimTalk_ClearSoup.label>맑은 수프</RimTalk_ClearSoup.label>
+  <RimTalk_ClearSoup.description>은은한 약초 향이 나는 투명한 물. 마시면 마음이 진정되고 말의 환각이 모두 사라진다.</RimTalk_ClearSoup.description>
+</LanguageData>
