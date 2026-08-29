@@ -399,14 +399,50 @@ namespace RimTalkDynamicColors
                     speaker.relations.DirectRelationExists(PawnRelationDefOf.Lover, recipient) ||
                     speaker.relations.DirectRelationExists(PawnRelationDefOf.Fiance, recipient))
                 {
-                    return "❤ ";
+                    return "♥ ";
                 }
                 int opinion = speaker.relations.OpinionOf(recipient);
-                if (opinion < -80) return "☠ ";
-                if (opinion > 80) return "★ ";
+                if (opinion < -80) return "! ";
+                if (opinion > 80) return "+ ";
             }
             catch { }
             return "";
+        }
+
+        public static Color GetPawnCustomColor(Pawn pawn, string pawnName, out bool isBold)
+        {
+            isBold = false;
+            if (settings == null) return Color.white;
+
+            if (settings.IsManualNameEntry(pawnName) && settings.GetCombinedCache().TryGetValue(pawnName, out StyleData style))
+            {
+                isBold = style.isBold;
+                return style.color;
+            }
+            if (settings.autoApplyFavColor && pawn != null && pawn.RaceProps.Humanlike && pawn.story != null && pawn.story.favoriteColor != null)
+            {
+                isBold = settings.autoApplyBold;
+                return pawn.story.favoriteColor.color;
+            }
+            if (pawn != null && settings.useFactionColor && pawn.Faction != null)
+            {
+                return pawn.Faction.Color;
+            }
+            if (pawn != null && !pawn.RaceProps.Humanlike && settings.enableForNonHumans)
+            {
+                return settings.nonHumanDefaultColor;
+            }
+            if (pawn != null && pawn.RaceProps.Humanlike && pawn.HostileTo(Faction.OfPlayer) && settings.enableForEnemies)
+            {
+                return Color.red;
+            }
+            if (settings.GetCombinedCache().TryGetValue(pawnName, out StyleData kwStyle))
+            {
+                isBold = kwStyle.isBold;
+                return kwStyle.color;
+            }
+
+            return Color.white;
         }
 
         public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue, Pawn recipient = null, string recipientName = null, Guid talkId = default)
@@ -418,29 +454,7 @@ namespace RimTalkDynamicColors
 
             if (settings.enableRimTalkNameColoring)
             {
-                if (settings.IsManualNameEntry(pawnName) && settings.GetCombinedCache().TryGetValue(pawnName, out StyleData style))
-                {
-                    nameColor = style.color;
-                    nameBold = style.isBold;
-                }
-                else if (settings.autoApplyFavColor && pawn != null && pawn.RaceProps.Humanlike && pawn.story != null && pawn.story.favoriteColor != null)
-                {
-                    nameColor = pawn.story.favoriteColor.color;
-                    nameBold = settings.autoApplyBold;
-                }
-                else if (pawn != null && settings.useFactionColor && pawn.Faction != null)
-                {
-                    nameColor = pawn.Faction.Color;
-                }
-                else if (pawn != null && !pawn.RaceProps.Humanlike && settings.enableForNonHumans)
-                {
-                    nameColor = settings.nonHumanDefaultColor;
-                }
-                else if (settings.GetCombinedCache().TryGetValue(pawnName, out StyleData kwStyle))
-                {
-                    nameColor = kwStyle.color;
-                    nameBold = kwStyle.isBold;
-                }
+                nameColor = GetPawnCustomColor(pawn, pawnName, out nameBold);
             }
 
             string coloredDialogue = ColorizeString(rawDialogue);
@@ -902,7 +916,7 @@ namespace RimTalkDynamicColors
                         badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                     }
                     string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
-                        ? $"[{badge}{item.PawnName} ➔ {item.RecipientName}]"
+                        ? $"[{badge}{item.PawnName} -> {item.RecipientName}]"
                         : $"[{item.PawnName}]";
 
                     Vector2 nameSize = Text.CalcSize(displayNameStr);
@@ -961,7 +975,7 @@ namespace RimTalkDynamicColors
                     badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                 }
                 string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
-                    ? $"[{badge}{item.PawnName} ➔ {item.RecipientName}]"
+                    ? $"[{badge}{item.PawnName} -> {item.RecipientName}]"
                     : $"[{item.PawnName}]";
 
                 Vector2 nameSize = Text.CalcSize(displayNameStr);
@@ -997,11 +1011,12 @@ namespace RimTalkDynamicColors
 
                 if (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
                 {
-                    Color recipientVanillaColor = Color.white;
-                    if (item.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(item.RecipientPawn);
-                    string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+                    bool isRecipientBold;
+                    Color recipientColor = GetPawnCustomColor(item.RecipientPawn, item.RecipientName, out isRecipientBold);
+                    if (isDimmed) recipientColor *= 0.6f;
+                    string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
 
-                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{badge}{item.PawnName}</color> <color=#{bracketHex}>➔</color> <color=#{recipientHex}>{item.RecipientName}</color><color=#{bracketHex}>]</color>");
+                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{badge}{item.PawnName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{item.RecipientName}</color><color=#{bracketHex}>]</color>");
                 }
                 else
                 {
@@ -1493,7 +1508,7 @@ namespace RimTalkDynamicColors
                     badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
                 }
                 string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
-                    ? $"{badge}{msg.PawnName} ➔ {msg.RecipientName}"
+                    ? $"{badge}{msg.PawnName} -> {msg.RecipientName}"
                     : msg.PawnName;
 
                 if (richText) sb.AppendLine($"<b>{nameStr}:</b> {msg.Content}");
@@ -1608,7 +1623,7 @@ namespace RimTalkDynamicColors
                             if (msg.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.RecipientPawn);
                             string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
 
-                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span style='color: #{bracketHex}; font-weight: bold;'>[</span><span class='name' style='{nameStyle}'>{badge}{msg.PawnName}</span> <span style='color: #{bracketHex};'>➔</span> <span style='color: #{recipientHex}; font-weight: bold;'>{msg.RecipientName}</span><span style='color: #{bracketHex}; font-weight: bold;'>]</span>: {contentHtml}</div>");
+                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span style='color: #{bracketHex}; font-weight: bold;'>[</span><span class='name' style='{nameStyle}'>{badge}{msg.PawnName}</span> <span style='color: #{bracketHex};'>-></span> <span style='color: #{recipientHex}; font-weight: bold;'>{msg.RecipientName}</span><span style='color: #{bracketHex}; font-weight: bold;'>]</span>: {contentHtml}</div>");
                         }
                         else
                         {
@@ -1631,7 +1646,7 @@ namespace RimTalkDynamicColors
                             badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
                         }
                         string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
-                            ? $"{badge}{msg.PawnName} ➔ {msg.RecipientName}"
+                            ? $"{badge}{msg.PawnName} -> {msg.RecipientName}"
                             : msg.PawnName;
                         sb.AppendLine($"[{nameStr}]: {msg.OriginalContent}");
                     }
@@ -1907,14 +1922,8 @@ namespace RimTalkDynamicColors
                                 continue;
                             }
 
-                            Color nameColor = Color.white;
-                            if (DynamicColorMod.settings.IsManualNameEntry(rawName) && DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData manualStyle)) { nameColor = manualStyle.color; }
-                            else if (DynamicColorMod.settings.autoApplyFavColor && speaker != null && speaker.RaceProps.Humanlike && speaker.story != null && speaker.story.favoriteColor != null) { nameColor = speaker.story.favoriteColor.color; }
-                            else if (speaker != null && DynamicColorMod.settings.useFactionColor && speaker.Faction != null) { nameColor = speaker.Faction.Color; }
-                            else if (speaker != null && !speaker.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { nameColor = DynamicColorMod.settings.nonHumanDefaultColor; }
-                            else if (speaker != null && speaker.RaceProps.Humanlike && speaker.HostileTo(Faction.OfPlayer) && DynamicColorMod.settings.enableForEnemies) { nameColor = Color.red; }
-                            else if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData kwStyle)) { nameColor = kwStyle.color; }
-
+                            bool isSpeakerBold;
+                            Color nameColor = DynamicColorMod.GetPawnCustomColor(speaker, rawName, out isSpeakerBold);
                             string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
 
                             if (DynamicColorMod.settings.showDirectionalArrow && matchedItem != null && matchedItem.RecipientPawn != null)
@@ -1929,12 +1938,12 @@ namespace RimTalkDynamicColors
                                 if (speaker != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(speaker);
                                 string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
 
-                                Color recipientVanillaColor = Color.white;
-                                if (matchedItem.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(matchedItem.RecipientPawn);
-                                string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+                                bool isRecipientBold;
+                                Color recipientColor = DynamicColorMod.GetPawnCustomColor(matchedItem.RecipientPawn, matchedItem.RecipientName, out isRecipientBold);
+                                string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
 
-                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>➔</color> <color=#{recipientHex}>{matchedItem.RecipientName}</color>";
-                                string plainDisplayName = $"[{badge}{rawName} ➔ {matchedItem.RecipientName}]";
+                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{matchedItem.RecipientName}</color>";
+                                string plainDisplayName = $"[{badge}{rawName} -> {matchedItem.RecipientName}]";
 
                                 _pawnNameField.SetValue(msg, formattedDisplayName);
 
