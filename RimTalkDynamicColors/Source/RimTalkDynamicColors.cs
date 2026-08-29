@@ -1842,6 +1842,8 @@ namespace RimTalkDynamicColors
         private static FieldInfo _cachedMessagesField;
         private static FieldInfo _pawnNameField;
         private static FieldInfo _pawnInstField;
+        private static FieldInfo _nameWidthField;
+        private static FieldInfo _dialogueField;
 
         public static void Prefix(object __instance)
         {
@@ -1861,35 +1863,90 @@ namespace RimTalkDynamicColors
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
                             if (_pawnNameField == null) _pawnNameField = AccessTools.Field(t, "PawnName") ?? AccessTools.Field(t, "pawnName");
+                            if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
+                            if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
+                            if (_dialogueField == null) _dialogueField = AccessTools.Field(t, "Dialogue") ?? AccessTools.Field(t, "dialogue");
+
                             string rawName = _pawnNameField.GetValue(msg) as string;
                             if (string.IsNullOrEmpty(rawName)) continue;
 
+                            if (rawName.StartsWith("<color="))
+                            {
+                                continue; // Already processed this line
+                            }
+
+                            Pawn speaker = _pawnInstField?.GetValue(msg) as Pawn;
+                            if (speaker == null) speaker = DynamicColorMod.FindPawnByName(rawName);
+
+                            string dialogue = _dialogueField?.GetValue(msg) as string;
+
+                            // Find matched history item
+                            LogItem matchedItem = null;
+                            for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
+                            {
+                                var hist = DynamicColorMod.SessionHistory[h];
+                                if (hist != null && hist.SpeakerPawn == speaker && hist.OriginalContent == dialogue)
+                                {
+                                    matchedItem = hist;
+                                    break;
+                                }
+                            }
+
                             if (!DynamicColorMod.settings.isGlobalEnabled || !DynamicColorMod.settings.enableRimTalkNameColoring)
                             {
-                                if (rawName.StartsWith("<color="))
-                                {
-                                    string cleanName = Regex.Replace(rawName, @"<color=[^>]*>", "");
-                                    cleanName = Regex.Replace(cleanName, @"</color>", "");
-                                    _pawnNameField.SetValue(msg, cleanName);
-                                }
                                 continue;
                             }
 
-                            if (rawName.StartsWith("<color=")) continue;
+                            Color nameColor = Color.white;
+                            if (DynamicColorMod.settings.IsManualNameEntry(rawName) && DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData manualStyle)) { nameColor = manualStyle.color; }
+                            else if (DynamicColorMod.settings.autoApplyFavColor && speaker != null && speaker.RaceProps.Humanlike && speaker.story != null && speaker.story.favoriteColor != null) { nameColor = speaker.story.favoriteColor.color; }
+                            else if (speaker != null && DynamicColorMod.settings.useFactionColor && speaker.Faction != null) { nameColor = speaker.Faction.Color; }
+                            else if (speaker != null && !speaker.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { nameColor = DynamicColorMod.settings.nonHumanDefaultColor; }
+                            else if (speaker != null && speaker.RaceProps.Humanlike && speaker.HostileTo(Faction.OfPlayer) && DynamicColorMod.settings.enableForEnemies) { nameColor = Color.red; }
+                            else if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData kwStyle)) { nameColor = kwStyle.color; }
 
-                            if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
-                            Pawn p = _pawnInstField?.GetValue(msg) as Pawn;
-                            if (p == null) p = DynamicColorMod.FindPawnByName(rawName);
+                            string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
 
-                            Color nameColor = Color.white; bool foundColor = false;
-                            if (DynamicColorMod.settings.IsManualNameEntry(rawName) && DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData manualStyle)) { nameColor = manualStyle.color; foundColor = true; }
-                            else if (DynamicColorMod.settings.autoApplyFavColor && p != null && p.RaceProps.Humanlike && p.story != null && p.story.favoriteColor != null) { nameColor = p.story.favoriteColor.color; foundColor = true; }
-                            else if (DynamicColorMod.settings.useFactionColor && p != null && p.Faction != null) { nameColor = p.Faction.Color; foundColor = true; }
-                            else if (p != null && !p.RaceProps.Humanlike && DynamicColorMod.settings.enableForNonHumans) { nameColor = DynamicColorMod.settings.nonHumanDefaultColor; foundColor = true; }
-                            else if (p != null && p.RaceProps.Humanlike && p.HostileTo(Faction.OfPlayer) && DynamicColorMod.settings.enableForEnemies) { nameColor = Color.red; foundColor = true; }
-                            else if (DynamicColorMod.settings.GetCombinedCache().TryGetValue(rawName, out StyleData kwStyle)) { nameColor = kwStyle.color; foundColor = true; }
+                            if (DynamicColorMod.settings.showDirectionalArrow && matchedItem != null && matchedItem.RecipientPawn != null)
+                            {
+                                string badge = "";
+                                if (DynamicColorMod.settings.enableRelationEffects && matchedItem.SpeakerPawn != null && matchedItem.RecipientPawn != null)
+                                {
+                                    badge = DynamicColorMod.GetRelationshipPrefix(matchedItem.SpeakerPawn, matchedItem.RecipientPawn);
+                                }
 
-                            if (foundColor) { string hex = ColorUtility.ToHtmlStringRGB(nameColor); _pawnNameField.SetValue(msg, $"<color=#{hex}>{rawName}</color>"); }
+                                Color vanillaColor = Color.white;
+                                if (speaker != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(speaker);
+                                string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
+
+                                Color recipientVanillaColor = Color.white;
+                                if (matchedItem.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(matchedItem.RecipientPawn);
+                                string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+
+                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>➔</color> <color=#{recipientHex}>{matchedItem.RecipientName}</color>";
+                                string plainDisplayName = $"[{badge}{rawName} ➔ {matchedItem.RecipientName}]";
+
+                                _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                if (_nameWidthField != null)
+                                {
+                                    float nameWidth = Text.CalcSize(plainDisplayName).x;
+                                    _nameWidthField.SetValue(msg, nameWidth);
+                                }
+                            }
+                            else
+                            {
+                                string formattedDisplayName = $"<color=#{nameHex}>{rawName}</color>";
+                                string plainDisplayName = $"[{rawName}]";
+
+                                _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                if (_nameWidthField != null)
+                                {
+                                    float nameWidth = Text.CalcSize(plainDisplayName).x;
+                                    _nameWidthField.SetValue(msg, nameWidth);
+                                }
+                            }
                         }
                     }
                 }
