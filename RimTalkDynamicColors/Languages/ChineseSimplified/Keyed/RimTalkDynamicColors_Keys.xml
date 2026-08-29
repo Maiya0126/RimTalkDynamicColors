@@ -86,4 +86,8 @@
 	<RTDC_BracketStyleDesc>为特定符号对内的文本设置独立颜色和样式。优先级高于默认动作染色和颜文字染色。\n例如：添加「 」用于心声，添加~ ~用于动作。</RTDC_BracketStyleDesc>
 	<RTDC_ClearBracketStyles>清空符号样式</RTDC_ClearBracketStyles>
 	<RTDC_Italic>斜体</RTDC_Italic>
+	<RTDC_ShowDirectionalArrow>显示对话指向箭头</RTDC_ShowDirectionalArrow>
+	<RTDC_ShowDirectionalArrowDesc>在历史记录窗口以及导出日志中，将人名显示为 [说话者 ➔ 听众] 形式。</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_EnableRelationEffects>启用关系动态特效</RTDC_EnableRelationEffects>
+	<RTDC_EnableRelationEffectsDesc>当说话者与听众有特定关系（夫妻/恋人 ❤、宿敌/仇人 ☠、挚友 ★）时，在名字前显示状态徽章。</RTDC_EnableRelationEffectsDesc>
 </LanguageData>

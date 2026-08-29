@@ -62,6 +62,9 @@ namespace RimTalkDynamicColors
 
         // [新增] 记录讲话的Pawn实体，用于绘制头像
         public Pawn SpeakerPawn;
+        public Pawn RecipientPawn;
+        public string RecipientName;
+        public Guid TalkId;
     }
 
     // ==========================================
@@ -78,6 +81,9 @@ namespace RimTalkDynamicColors
 
         // [新增] 是否在历史记录窗口显示头像
         public bool showAvatarInHistory = true;
+
+        public bool showDirectionalArrow = true;
+        public bool enableRelationEffects = true;
 
         public bool enableRimTalkNameColoring = true;
         public bool enableChatColoring = true;
@@ -228,6 +234,8 @@ namespace RimTalkDynamicColors
             Scribe_Values.Look(ref isGlobalEnabled, "isGlobalEnabled", true);
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
             Scribe_Values.Look(ref showAvatarInHistory, "showAvatarInHistory", true); // 保存头像开关
+            Scribe_Values.Look(ref showDirectionalArrow, "showDirectionalArrow", true);
+            Scribe_Values.Look(ref enableRelationEffects, "enableRelationEffects", true);
             Scribe_Values.Look(ref enableRimTalkNameColoring, "enableRimTalkNameColoring", true);
             Scribe_Values.Look(ref enableChatColoring, "enableChatColoring", true);
             Scribe_Values.Look(ref enableKeywordColoring, "enableKeywordColoring", true);
@@ -384,7 +392,26 @@ namespace RimTalkDynamicColors
             RecordedTalkIds.Clear();
         }
 
-        public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue)
+        public static string GetRelationshipPrefix(Pawn speaker, Pawn recipient)
+        {
+            if (speaker == null || recipient == null || speaker.relations == null) return "";
+            try
+            {
+                if (speaker.relations.DirectRelationExists(PawnRelationDefOf.Spouse, recipient) ||
+                    speaker.relations.DirectRelationExists(PawnRelationDefOf.Lover, recipient) ||
+                    speaker.relations.DirectRelationExists(PawnRelationDefOf.Fiance, recipient))
+                {
+                    return "❤ ";
+                }
+                int opinion = speaker.relations.OpinionOf(recipient);
+                if (opinion < -80) return "☠ ";
+                if (opinion > 80) return "★ ";
+            }
+            catch { }
+            return "";
+        }
+
+        public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue, Pawn recipient = null, string recipientName = null, Guid talkId = default)
         {
             CurrentProcessingPawn = pawn;
 
@@ -431,7 +458,10 @@ namespace RimTalkDynamicColors
                 NameBold = nameBold,
                 Timestamp = DateTime.Now.ToShortTimeString(),
                 SourceObject = null,
-                SpeakerPawn = pawn
+                SpeakerPawn = pawn,
+                RecipientPawn = recipient,
+                RecipientName = recipientName,
+                TalkId = talkId
             });
 
             CurrentProcessingPawn = null;
@@ -493,7 +523,7 @@ namespace RimTalkDynamicColors
             string cleanName = Regex.Replace(name, @"<.*?>", "");
             if (_nameToPawnCache.TryGetValue(cleanName, out Pawn cachedPawn)) return cachedPawn;
             if (Current.ProgramState != ProgramState.Playing || Current.Game == null || Current.Game.Maps == null) return null;
-            List<Pawn> pawns = PawnsFinder.AllMaps_FreeColonistsSpawned;
+            var pawns = PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive;
             if (pawns == null) return null;
             foreach (var p in pawns) { if (p != null && p.Name != null && p.Name.ToStringShort == cleanName) { _nameToPawnCache[cleanName] = p; return p; } }
             _nameToPawnCache[cleanName] = null;
@@ -868,7 +898,16 @@ namespace RimTalkDynamicColors
                 for (int i = 0; i < displayList.Count; i++)
                 {
                     var item = displayList[i];
-                    Vector2 nameSize = Text.CalcSize(item.PawnName);
+                    string badge = "";
+                    if (settings.enableRelationEffects && item.SpeakerPawn != null && item.RecipientPawn != null)
+                    {
+                        badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
+                    }
+                    string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
+                        ? $"[{badge}{item.PawnName} ➔ {item.RecipientName}]"
+                        : $"[{item.PawnName}]";
+
+                    Vector2 nameSize = Text.CalcSize(displayNameStr);
                     float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
                     float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
                     float rowHeight = Mathf.Max(24f, textHeight);
@@ -918,7 +957,16 @@ namespace RimTalkDynamicColors
 
                 string contentToShow = isDimmed ? item.CleanContent : item.Content;
 
-                Vector2 nameSize = Text.CalcSize(item.PawnName);
+                string badge = "";
+                if (settings.enableRelationEffects && item.SpeakerPawn != null && item.RecipientPawn != null)
+                {
+                    badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
+                }
+                string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
+                    ? $"[{badge}{item.PawnName} ➔ {item.RecipientName}]"
+                    : $"[{item.PawnName}]";
+
+                Vector2 nameSize = Text.CalcSize(displayNameStr);
                 float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
 
                 Rect lineRect = new Rect(5f, curY, viewWidth, rowHeight);
@@ -948,7 +996,19 @@ namespace RimTalkDynamicColors
                 string nameHex = ColorUtility.ToHtmlStringRGB(nameColorToDraw);
                 string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
                 GUI.color = Color.white;
-                Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{item.PawnName}</color><color=#{bracketHex}>]</color>");
+
+                if (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
+                {
+                    Color recipientVanillaColor = Color.white;
+                    if (item.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(item.RecipientPawn);
+                    string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+
+                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{badge}{item.PawnName}</color> <color=#{bracketHex}>➔</color> <color=#{recipientHex}>{item.RecipientName}</color><color=#{bracketHex}>]</color>");
+                }
+                else
+                {
+                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{item.PawnName}</color><color=#{bracketHex}>]</color>");
+                }
 
                 // 内容文本框
                 GUI.color = isDimmed ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
@@ -1040,6 +1100,10 @@ namespace RimTalkDynamicColors
             DrawTwoColumnCheckbox(listing,
                 "RTDC_EnableRimTalkNameColoring".Translate(), ref settings.enableRimTalkNameColoring, "RTDC_EnableRimTalkNameColoringDesc".Translate(),
                 "RTDC_EnableChatColoring".Translate(), ref settings.enableChatColoring, "RTDC_EnableChatColoringDesc".Translate());
+
+            DrawTwoColumnCheckbox(listing,
+                "RTDC_ShowDirectionalArrow".Translate(), ref settings.showDirectionalArrow, "RTDC_ShowDirectionalArrowDesc".Translate(),
+                "RTDC_EnableRelationEffects".Translate(), ref settings.enableRelationEffects, "RTDC_EnableRelationEffectsDesc".Translate());
 
             listing.Gap(4f);
             if (listing.ButtonText("RTDC_OpenHistoryWindow".Translate(), "RTDC_OpenHistoryWindowDesc".Translate()))
@@ -1425,8 +1489,17 @@ namespace RimTalkDynamicColors
 
             foreach (var msg in listToCopy)
             {
-                if (richText) sb.AppendLine($"<b>{msg.PawnName}:</b> {msg.Content}");
-                else sb.AppendLine($"{msg.PawnName}: {msg.OriginalContent}");
+                string badge = "";
+                if (settings.enableRelationEffects && msg.SpeakerPawn != null && msg.RecipientPawn != null)
+                {
+                    badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
+                }
+                string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                    ? $"{badge}{msg.PawnName} ➔ {msg.RecipientName}"
+                    : msg.PawnName;
+
+                if (richText) sb.AppendLine($"<b>{nameStr}:</b> {msg.Content}");
+                else sb.AppendLine($"{nameStr}: {msg.OriginalContent}");
             }
             GUIUtility.systemCopyBuffer = sb.ToString();
             Messages.Message("RTDC_Copied".Translate(), MessageTypeDefOf.TaskCompletion, false);
@@ -1510,6 +1583,12 @@ namespace RimTalkDynamicColors
                     sb.AppendLine("<div id='log-container'>");
                     foreach (var msg in SessionHistory)
                     {
+                        string badge = "";
+                        if (settings.enableRelationEffects && msg.SpeakerPawn != null && msg.RecipientPawn != null)
+                        {
+                            badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
+                        }
+
                         string nameHex = ColorUtility.ToHtmlStringRGB(msg.NameColor);
                         string nameStyle = $"color: #{nameHex};";
                         if (msg.NameBold) nameStyle += " font-weight: bold;";
@@ -1520,7 +1599,23 @@ namespace RimTalkDynamicColors
                             .Replace("<i>", "<em>")
                             .Replace("</i>", "</em>");
                         contentHtml = Regex.Replace(contentHtml, @"<color=#([0-9A-Fa-f]{6})>(.*?)</color>", "<span style='color:#$1'>$2</span>");
-                        sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span class='name' style='{nameStyle}'>[{msg.PawnName}]</span>: {contentHtml}</div>");
+
+                        if (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                        {
+                            Color vanillaColor = Color.white;
+                            if (msg.SpeakerPawn != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.SpeakerPawn);
+                            string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
+
+                            Color recipientVanillaColor = Color.white;
+                            if (msg.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.RecipientPawn);
+                            string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+
+                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span style='color: #{bracketHex}; font-weight: bold;'>[</span><span class='name' style='{nameStyle}'>{badge}{msg.PawnName}</span> <span style='color: #{bracketHex};'>➔</span> <span style='color: #{recipientHex}; font-weight: bold;'>{msg.RecipientName}</span><span style='color: #{bracketHex}; font-weight: bold;'>]</span>: {contentHtml}</div>");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span class='name' style='{nameStyle}'>[{msg.PawnName}]</span>: {contentHtml}</div>");
+                        }
                     }
                     sb.AppendLine("</div>");
                     sb.AppendLine("</body></html>");
@@ -1530,7 +1625,18 @@ namespace RimTalkDynamicColors
                     sb.AppendLine(pageHeader);
                     sb.AppendLine(subHeader);
                     sb.AppendLine(new string('-', 50));
-                    foreach (var msg in SessionHistory) { sb.AppendLine($"[{msg.PawnName}]: {msg.OriginalContent}"); }
+                    foreach (var msg in SessionHistory)
+                    {
+                        string badge = "";
+                        if (settings.enableRelationEffects && msg.SpeakerPawn != null && msg.RecipientPawn != null)
+                        {
+                            badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
+                        }
+                        string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                            ? $"{badge}{msg.PawnName} ➔ {msg.RecipientName}"
+                            : msg.PawnName;
+                        sb.AppendLine($"[{nameStr}]: {msg.OriginalContent}");
+                    }
                 }
                 File.WriteAllText(path, sb.ToString());
                 if (silent) Messages.Message("RTDC_AutoExportMsg".Translate(filename), MessageTypeDefOf.PositiveEvent, false);
@@ -1809,6 +1915,8 @@ namespace RimTalkDynamicColors
         private static PropertyInfo _propTalkName;
         private static PropertyInfo _propTalkText;
         private static PropertyInfo _propTalkId;
+        private static PropertyInfo _propTargetName;
+        private static PropertyInfo _propParentTalkId;
 
         public static void Postfix(Pawn pawn, object talk)
         {
@@ -1821,6 +1929,8 @@ namespace RimTalkDynamicColors
                 if (_propTalkName == null) _propTalkName = AccessTools.Property(t, "Name");
                 if (_propTalkText == null) _propTalkText = AccessTools.Property(t, "Text");
                 if (_propTalkId == null) _propTalkId = AccessTools.Property(t, "Id");
+                if (_propTargetName == null) _propTargetName = AccessTools.Property(t, "TargetName");
+                if (_propParentTalkId == null) _propParentTalkId = AccessTools.Property(t, "ParentTalkId");
 
                 Guid talkId = Guid.Empty;
                 if (_propTalkId != null) talkId = (Guid)_propTalkId.GetValue(talk);
@@ -1828,11 +1938,36 @@ namespace RimTalkDynamicColors
 
                 string pawnName = _propTalkName?.GetValue(talk) as string ?? pawn.LabelShort;
                 string rawDialogue = _propTalkText?.GetValue(talk) as string ?? "";
+                string targetName = _propTargetName?.GetValue(talk) as string;
 
                 if (string.IsNullOrEmpty(pawnName)) pawnName = pawn.LabelShort;
                 if (string.IsNullOrEmpty(rawDialogue)) return;
 
-                DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue);
+                Pawn recipientPawn = null;
+                if (!string.IsNullOrEmpty(targetName))
+                {
+                    recipientPawn = DynamicColorMod.FindPawnByName(targetName);
+                }
+                else if (_propParentTalkId != null)
+                {
+                    Guid parentTalkId = (Guid)_propParentTalkId.GetValue(talk);
+                    if (parentTalkId != Guid.Empty)
+                    {
+                        // Search SessionHistory backwards to find the speaker of the parent talk
+                        for (int i = DynamicColorMod.SessionHistory.Count - 1; i >= 0; i--)
+                        {
+                            var hist = DynamicColorMod.SessionHistory[i];
+                            if (hist != null && hist.TalkId == parentTalkId)
+                            {
+                                recipientPawn = hist.SpeakerPawn;
+                                targetName = hist.PawnName;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue, recipientPawn, targetName, talkId);
             }
             catch (Exception) { }
         }
@@ -1860,7 +1995,9 @@ namespace RimTalkDynamicColors
                 if (playerPawn != initiator) return;
 
                 string pawnName = initiator.LabelShort ?? "Player";
-                DynamicColorMod.RecordToSessionHistory(initiator, pawnName, message);
+                string recipientName = recipient?.LabelShort;
+
+                DynamicColorMod.RecordToSessionHistory(initiator, pawnName, message, recipient, recipientName);
             }
             catch (Exception) { }
         }

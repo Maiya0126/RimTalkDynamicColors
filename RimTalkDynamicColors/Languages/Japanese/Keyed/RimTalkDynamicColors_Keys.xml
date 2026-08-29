@@ -86,4 +86,8 @@
 	<RTDC_BracketStyleDesc>特定の記号ペア内のテキストに独立した色とスタイルを設定します。デフォルトのアクション/顔文字スタイルより優先されます。\n例: 「 」を心の声用に、~ ~をアクション用に追加。</RTDC_BracketStyleDesc>
 	<RTDC_ClearBracketStyles>記号スタイルをクリア</RTDC_ClearBracketStyles>
 	<RTDC_Italic>斜体</RTDC_Italic>
+	<RTDC_ShowDirectionalArrow>会話の宛先矢印を表示</RTDC_ShowDirectionalArrow>
+	<RTDC_ShowDirectionalArrowDesc>履歴ウィンドウおよび出力ログで、名前を [発言者 ➔ 聞き手] 形式で表示します。</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_EnableRelationEffects>関係の動的エフェクトを有効化</RTDC_EnableRelationEffects>
+	<RTDC_EnableRelationEffectsDesc>発言者と聞き手の間に特定の関係（配偶者/恋人 ❤、宿敵/仇敵 ☠、親友 ★）がある場合、名前の前にステータスバッジを表示します。</RTDC_EnableRelationEffectsDesc>
 </LanguageData>

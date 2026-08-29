@@ -86,4 +86,8 @@
 	<RTDC_BracketStyleDesc>Задать независимый цвет и стиль для текста внутри определённых пар символов. Приоритет выше, чем у стандартных стилей действий/каомодзи.\nНапр.: добавьте 「 」для мыслей, ~ ~для действий.</RTDC_BracketStyleDesc>
 	<RTDC_ClearBracketStyles>Очистить стили скобок</RTDC_ClearBracketStyles>
 	<RTDC_Italic>Курсив</RTDC_Italic>
+	<RTDC_ShowDirectionalArrow>Показывать стрелку направления разговора</RTDC_ShowDirectionalArrow>
+	<RTDC_ShowDirectionalArrowDesc>Отображать имена в формате [Говорящий ➔ Слушатель] в окне истории и экспортируемых журналах.</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_EnableRelationEffects>Включить динамические эффекты отношений</RTDC_EnableRelationEffects>
+	<RTDC_EnableRelationEffectsDesc>Показывать значок статуса отношений (Супруг/Возлюбленный ❤, Соперник ☠, Друг ★) перед именем, если между говорящим и слушателем существуют определённые отношения.</RTDC_EnableRelationEffectsDesc>
 </LanguageData>

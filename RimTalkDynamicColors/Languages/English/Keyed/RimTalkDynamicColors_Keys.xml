@@ -86,4 +86,8 @@
 	<RTDC_BracketStyleDesc>Set independent color and style for text inside specific symbol pairs. Higher priority than default action/kaomoji styling.\ne.g. Add 「 」for inner thoughts, ~ ~for actions.</RTDC_BracketStyleDesc>
 	<RTDC_ClearBracketStyles>Clear Bracket Styles</RTDC_ClearBracketStyles>
 	<RTDC_Italic>Italic</RTDC_Italic>
+	<RTDC_ShowDirectionalArrow>Show Directional Arrow</RTDC_ShowDirectionalArrow>
+	<RTDC_ShowDirectionalArrowDesc>Show names in [Speaker ➔ Recipient] format in history log and exports.</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_EnableRelationEffects>Enable Relation Effects</RTDC_EnableRelationEffects>
+	<RTDC_EnableRelationEffectsDesc>Show a relationship status badge (Lover ❤, Rival ☠, Friend ★) in front of the name when specific relationships exist between speaker and recipient.</RTDC_EnableRelationEffectsDesc>
 </LanguageData>
