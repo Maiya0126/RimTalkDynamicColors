@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -450,6 +450,14 @@ namespace RimTalkDynamicColors
         {
             CurrentProcessingPawn = pawn;
 
+            // ===== ABSOLUTE GUARDRAIL: the recipient can NEVER be the speaker themselves! =====
+            // This mathematically prevents [A -> A] chains from ever entering SessionHistory.
+            if (recipient != null && (recipient == pawn || recipientName == pawnName))
+            {
+                recipient = null;
+                recipientName = null;
+            }
+
             if (recipient == null && SessionHistory.Count > 0)
             {
                 var prevItem = SessionHistory[SessionHistory.Count - 1];
@@ -458,6 +466,13 @@ namespace RimTalkDynamicColors
                     recipient = prevItem.SpeakerPawn;
                     recipientName = prevItem.PawnName;
                 }
+            }
+
+            // Re-run the guard after chronological fallback too.
+            if (recipient != null && (recipient == pawn || recipientName == pawnName))
+            {
+                recipient = null;
+                recipientName = null;
             }
 
             Color nameColor = Color.white;
@@ -926,9 +941,12 @@ namespace RimTalkDynamicColors
                     {
                         badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                     }
-                    string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
-                        ? $"[{badge}{item.PawnName} -> {item.RecipientName}]"
-                        : $"[{item.PawnName}]";
+                    string cleanPawnName = Regex.Replace(item.PawnName, @"<.*?>", "").Trim();
+                    string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : Regex.Replace(item.RecipientName, @"<.*?>", "").Trim();
+
+                    string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient))
+                        ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
+                        : $"[{cleanPawnName}]";
 
                     Vector2 nameSize = Text.CalcSize(displayNameStr);
                     float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
@@ -985,9 +1003,15 @@ namespace RimTalkDynamicColors
                 {
                     badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                 }
-                string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
-                    ? $"[{badge}{item.PawnName} -> {item.RecipientName}]"
-                    : $"[{item.PawnName}]";
+                string cleanPawnName = Regex.Replace(item.PawnName, @"<.*?>", "").Trim();
+                string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : Regex.Replace(item.RecipientName, @"<.*?>", "").Trim();
+
+                // ABSOLUTE GUARDRAIL: never draw a self-pointing arrow in the history log window either.
+                if (cleanRecipient == cleanPawnName) cleanRecipient = "";
+
+                string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient))
+                    ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
+                    : $"[{cleanPawnName}]";
 
                 Vector2 nameSize = Text.CalcSize(displayNameStr);
                 float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
@@ -1020,18 +1044,18 @@ namespace RimTalkDynamicColors
                 string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
                 GUI.color = Color.white;
 
-                if (settings.showDirectionalArrow && !string.IsNullOrEmpty(item.RecipientName))
+                if (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient) && cleanRecipient != cleanPawnName)
                 {
                     bool isRecipientBold;
-                    Color recipientColor = GetPawnCustomColor(item.RecipientPawn, item.RecipientName, out isRecipientBold);
+                    Color recipientColor = GetPawnCustomColor(item.RecipientPawn, cleanRecipient, out isRecipientBold);
                     if (isDimmed) recipientColor *= 0.6f;
                     string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
 
-                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{badge}{item.PawnName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{item.RecipientName}</color><color=#{bracketHex}>]</color>");
+                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{badge}{cleanPawnName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{cleanRecipient}</color><color=#{bracketHex}>]</color>");
                 }
                 else
                 {
-                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{item.PawnName}</color><color=#{bracketHex}>]</color>");
+                    Widgets.Label(nameRect, $"<color=#{bracketHex}>[</color><color=#{nameHex}>{cleanPawnName}</color><color=#{bracketHex}>]</color>");
                 }
 
                 // 内容文本框
@@ -1868,6 +1892,7 @@ namespace RimTalkDynamicColors
         private static FieldInfo _pawnInstField;
         private static FieldInfo _nameWidthField;
         private static FieldInfo _dialogueField;
+        private static FieldInfo _lineHeightField;
         private static FieldInfo _isCacheDirtyField;
         private static MethodInfo _recalcMethod;
 
@@ -1886,21 +1911,26 @@ namespace RimTalkDynamicColors
                     if (_isCacheDirtyField != null && _recalcMethod != null)
                     {
                         bool isDirty = (bool)_isCacheDirtyField.GetValue(__instance);
-                        Log.Warning($"[RimTalk DynamicColors] Prefix triggered. isDirty={isDirty}");
                         if (isDirty)
                         {
+                            // Trigger cache rebuild first, then we can modify the newly generated cache!
                             _recalcMethod.Invoke(__instance, null);
                             _isCacheDirtyField.SetValue(__instance, false);
-                            Log.Warning($"[RimTalk DynamicColors] Cache recalculated and set dirty to false.");
                         }
                     }
 
                     if (_cachedMessagesField == null) _cachedMessagesField = AccessTools.Field(__instance.GetType(), "_cachedMessagesForLog");
-                    if (_cachedMessagesField == null) { Log.Warning("[RimTalk DynamicColors] _cachedMessagesForLog field not found!"); return; }
+                    if (_cachedMessagesField == null) return;
                     var list = _cachedMessagesField.GetValue(__instance) as System.Collections.IList;
                     if (list != null)
                     {
-                        Log.Warning($"[RimTalk DynamicColors] Found list with {list.Count} items.");
+                        float windowWidth = 200f;
+                        try
+                        {
+                            windowWidth = ((Window)__instance).windowRect.width;
+                        }
+                        catch { }
+
                         for (int i = 0; i < list.Count; i++)
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
@@ -1908,21 +1938,30 @@ namespace RimTalkDynamicColors
                             if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
                             if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
                             if (_dialogueField == null) _dialogueField = AccessTools.Field(t, "Dialogue") ?? AccessTools.Field(t, "dialogue");
+                            if (_lineHeightField == null) _lineHeightField = AccessTools.Field(t, "LineHeight") ?? AccessTools.Field(t, "lineHeight");
 
                             string rawName = _pawnNameField.GetValue(msg) as string;
                             if (string.IsNullOrEmpty(rawName)) continue;
 
-                            if (rawName.StartsWith("<color="))
+                            // ===== CRITICAL GUARD: skip rows that we already processed (prevents infinite stacking!) =====
+                            // After our patch writes the colored name (which contains rich tags and "->"), reading the
+                            // cache again on later OnGUI frames MUST NOT re-process it into an ever-growing chain.
+                            if (rawName.Contains("<color=") || rawName.Contains("->"))
                             {
-                                continue; // Already processed
+                                continue;
                             }
 
+                            // Strip existing rich text tags to prevent nested tag corruption!
+                            string cleanRawName = Regex.Replace(rawName, @"<.*?>", "").Trim();
+                            if (string.IsNullOrEmpty(cleanRawName)) cleanRawName = rawName;
+
+                            // Use PawnInstance first (always clean, never touched by us), not the cache name.
                             Pawn speaker = _pawnInstField?.GetValue(msg) as Pawn;
-                            if (speaker == null) speaker = DynamicColorMod.FindPawnByName(rawName);
+                            if (speaker == null) speaker = DynamicColorMod.FindPawnByName(cleanRawName);
 
                             string dialogue = _dialogueField?.GetValue(msg) as string;
 
-                            // Find matched history item
+                            // Find matched history item from SessionHistory (which has 100% accurate data)
                             LogItem matchedItem = null;
                             for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                             {
@@ -1934,36 +1973,10 @@ namespace RimTalkDynamicColors
                                 }
                             }
 
-                            if (!DynamicColorMod.settings.isGlobalEnabled)
-                            {
-                                continue;
-                            }
-
-                            // Colorize dialogue directly in the cache!
-                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue))
-                            {
-                                string colorizedDialogue = DynamicColorMod.ColorizeString(dialogue);
-                                if (colorizedDialogue != dialogue)
-                                {
-                                    _dialogueField.SetValue(msg, colorizedDialogue);
-                                }
-                            }
-
-                            if (!DynamicColorMod.settings.enableRimTalkNameColoring)
-                            {
-                                continue;
-                            }
-
-                            bool isSpeakerBold;
-                            Color nameColor = DynamicColorMod.GetPawnCustomColor(speaker, rawName, out isSpeakerBold);
-                            string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
-
-                            Log.Warning($"[RimTalk DynamicColors] Msg loop: rawName={rawName}, speaker={speaker?.LabelShort}, hasMatchedItem={(matchedItem != null)}, recipientPawn={matchedItem?.RecipientPawn?.LabelShort}, recipientName={matchedItem?.RecipientName}");
-
                             Pawn recipientPawn = null;
                             string recipientName = "";
 
-                            if (matchedItem != null && matchedItem.RecipientPawn != null)
+                            if (matchedItem != null && matchedItem.RecipientPawn != null && matchedItem.RecipientPawn != speaker)
                             {
                                 recipientPawn = matchedItem.RecipientPawn;
                                 recipientName = matchedItem.RecipientName;
@@ -1982,45 +1995,128 @@ namespace RimTalkDynamicColors
                                 }
                             }
 
-                            if (DynamicColorMod.settings.showDirectionalArrow && recipientPawn != null)
+                            // Clean recipient name as well
+                            string cleanRecipientName = string.IsNullOrEmpty(recipientName) ? "" : Regex.Replace(recipientName, @"<.*?>", "").Trim();
+
+                            // ABSOLUTE GUARDRAIL: prevent any self-pointing arrows [A -> A] from ever being drawn!
+                            if (recipientPawn == speaker || cleanRecipientName == cleanRawName)
                             {
-                                string badge = "";
-                                if (DynamicColorMod.settings.enableRelationEffects && speaker != null)
+                                recipientPawn = null;
+                                cleanRecipientName = "";
+                            }
+
+                            if (!DynamicColorMod.settings.isGlobalEnabled)
+                            {
+                                continue;
+                            }
+
+                            // Colorize dialogue directly in the cache!
+                            string colorizedDialogue = dialogue;
+                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue))
+                            {
+                                colorizedDialogue = DynamicColorMod.ColorizeString(dialogue);
+                                if (colorizedDialogue != dialogue)
                                 {
-                                    badge = DynamicColorMod.GetRelationshipPrefix(speaker, recipientPawn);
+                                    _dialogueField.SetValue(msg, colorizedDialogue);
                                 }
+                            }
 
-                                Color vanillaColor = Color.white;
-                                if (speaker != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(speaker);
-                                string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
+                            float nameWidth = 40f;
+                            if (DynamicColorMod.settings.enableRimTalkNameColoring)
+                            {
+                                bool isSpeakerBold;
+                                Color nameColor = DynamicColorMod.GetPawnCustomColor(speaker, cleanRawName, out isSpeakerBold);
+                                string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
 
-                                bool isRecipientBold;
-                                Color recipientColor = DynamicColorMod.GetPawnCustomColor(recipientPawn, recipientName, out isRecipientBold);
-                                string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
-
-                                string formattedDisplayName = $"<color=#{nameHex}>{badge}{rawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{recipientName}</color>";
-                                string plainDisplayName = $"[{badge}{rawName} -> {recipientName}]";
-
-                                _pawnNameField.SetValue(msg, formattedDisplayName);
-
-                                if (_nameWidthField != null)
+                                if (DynamicColorMod.settings.showDirectionalArrow && recipientPawn != null)
                                 {
-                                    float nameWidth = Text.CalcSize(plainDisplayName).x;
-                                    _nameWidthField.SetValue(msg, nameWidth);
+                                    string badge = "";
+                                    if (DynamicColorMod.settings.enableRelationEffects && speaker != null)
+                                    {
+                                        badge = DynamicColorMod.GetRelationshipPrefix(speaker, recipientPawn);
+                                    }
+
+                                    Color vanillaColor = Color.white;
+                                    if (speaker != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(speaker);
+                                    string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
+
+                                    bool isRecipientBold;
+                                    Color recipientColor = DynamicColorMod.GetPawnCustomColor(recipientPawn, cleanRecipientName, out isRecipientBold);
+                                    string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
+
+                                    string formattedDisplayName = $"<color=#{nameHex}>{badge}{cleanRawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{cleanRecipientName}</color>";
+                                    string plainDisplayName = $"[{badge}{cleanRawName} -> {cleanRecipientName}]";
+
+                                    _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                    if (_nameWidthField != null)
+                                    {
+                                        nameWidth = Text.CalcSize(plainDisplayName).x + 14f; // Large margin to completely prevent name wrapping
+                                        _nameWidthField.SetValue(msg, nameWidth);
+                                    }
+                                }
+                                else
+                                {
+                                    string formattedDisplayName = $"<color=#{nameHex}>{cleanRawName}</color>";
+                                    string plainDisplayName = $"[{cleanRawName}]";
+
+                                    _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                    if (_nameWidthField != null)
+                                    {
+                                        nameWidth = Text.CalcSize(plainDisplayName).x + 14f; // Large margin to completely prevent name wrapping
+                                        _nameWidthField.SetValue(msg, nameWidth);
+                                    }
                                 }
                             }
                             else
                             {
-                                string formattedDisplayName = $"<color=#{nameHex}>{rawName}</color>";
-                                string plainDisplayName = $"[{rawName}]";
-
-                                _pawnNameField.SetValue(msg, formattedDisplayName);
-
+                                // If name coloring is disabled, still ensure nameWidth is calculated on clean names
+                                string plainDisplayName = string.IsNullOrEmpty(cleanRecipientName) ? $"[{cleanRawName}]" : $"[{cleanRawName} -> {cleanRecipientName}]";
                                 if (_nameWidthField != null)
                                 {
-                                    float nameWidth = Text.CalcSize(plainDisplayName).x;
+                                    nameWidth = Text.CalcSize(plainDisplayName).x + 14f; // Large margin to completely prevent name wrapping
                                     _nameWidthField.SetValue(msg, nameWidth);
                                 }
+                            }
+
+                            // ===== [RECALCULATE LINE HEIGHT] =====
+                            // This ensures the window allocates the perfect amount of height for the colored dialogue,
+                            // completely preventing any truncation/clipping/folding at the end of the text!
+                            if (_lineHeightField != null)
+                            {
+                                // MEASURE WITH THE SAME FONT THAT WILL ACTUALLY RENDER.
+                                // The Prefix runs immediately before DrawMessageLog; RimTalk does not switch fonts
+                                // inside DrawMessageLog, so the current Text.Font here IS the render font. Forcing
+                                // GameFont.Small here caused width/height mismatch (name wrapping / folded text).
+                                GameFont prevFont = Text.Font;
+                                TextAnchor prevAnchor = Text.Anchor;
+                                Text.Anchor = TextAnchor.UpperLeft;
+
+                                float totalWidth = windowWidth - 10f;
+                                float dialogueWidth = totalWidth - nameWidth - 5f;
+                                if (dialogueWidth < 20f)
+                                {
+                                    dialogueWidth = Mathf.Max(20f, totalWidth * 0.6f);
+                                }
+                                float availableTextWidth = dialogueWidth - 3f;
+
+                                // Measure on plain dialogue text (single ground truth for line counting).
+                                string cleanDialogueForMeasure = string.IsNullOrEmpty(dialogue) ? "" : dialogue;
+
+                                float textHeight = Text.CalcHeight(cleanDialogueForMeasure, availableTextWidth);
+
+                                string plainDisplayName = string.IsNullOrEmpty(cleanRecipientName) ? $"[{cleanRawName}]" : $"[{cleanRawName} -> {cleanRecipientName}]";
+                                float nameHeight = Text.CalcHeight(plainDisplayName, Mathf.Max(nameWidth, 40f));
+
+                                float calculatedLineHeight = Mathf.Max(textHeight, nameHeight) + 6f;
+                                // HARD FLOOR: a line can never collapse below the name's natural height (prevents folding).
+                                calculatedLineHeight = Mathf.Max(calculatedLineHeight, Text.CalcHeight($"[{cleanRawName}]", 9999f) + 6f);
+
+                                Text.Font = prevFont;
+                                Text.Anchor = prevAnchor;
+
+                                _lineHeightField.SetValue(msg, calculatedLineHeight);
                             }
                         }
                     }
