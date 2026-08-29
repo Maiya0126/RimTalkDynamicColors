@@ -1886,21 +1886,19 @@ namespace RimTalkDynamicColors
                     if (_isCacheDirtyField != null && _recalcMethod != null)
                     {
                         bool isDirty = (bool)_isCacheDirtyField.GetValue(__instance);
-                        Log.Warning($"[RimTalk DynamicColors] Prefix triggered. isDirty={isDirty}");
                         if (isDirty)
                         {
+                            // Trigger cache rebuild first, then we can modify the newly generated cache!
                             _recalcMethod.Invoke(__instance, null);
                             _isCacheDirtyField.SetValue(__instance, false);
-                            Log.Warning($"[RimTalk DynamicColors] Cache recalculated and set dirty to false.");
                         }
                     }
 
                     if (_cachedMessagesField == null) _cachedMessagesField = AccessTools.Field(__instance.GetType(), "_cachedMessagesForLog");
-                    if (_cachedMessagesField == null) { Log.Warning("[RimTalk DynamicColors] _cachedMessagesForLog field not found!"); return; }
+                    if (_cachedMessagesField == null) return;
                     var list = _cachedMessagesField.GetValue(__instance) as System.Collections.IList;
                     if (list != null)
                     {
-                        Log.Warning($"[RimTalk DynamicColors] Found list with {list.Count} items.");
                         for (int i = 0; i < list.Count; i++)
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
@@ -1922,7 +1920,7 @@ namespace RimTalkDynamicColors
 
                             string dialogue = _dialogueField?.GetValue(msg) as string;
 
-                            // Find matched history item
+                            // Find matched history item from SessionHistory (which has 100% accurate data)
                             LogItem matchedItem = null;
                             for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                             {
@@ -1932,6 +1930,35 @@ namespace RimTalkDynamicColors
                                     matchedItem = hist;
                                     break;
                                 }
+                            }
+
+                            Pawn recipientPawn = null;
+                            string recipientName = "";
+
+                            if (matchedItem != null && matchedItem.RecipientPawn != null)
+                            {
+                                recipientPawn = matchedItem.RecipientPawn;
+                                recipientName = matchedItem.RecipientName;
+                            }
+                            else if (i + 1 < list.Count)
+                            {
+                                var prevMsg = list[i + 1];
+                                if (prevMsg != null)
+                                {
+                                    Pawn prevSpeaker = _pawnInstField?.GetValue(prevMsg) as Pawn;
+                                    if (prevSpeaker != null && prevSpeaker != speaker)
+                                    {
+                                        recipientPawn = prevSpeaker;
+                                        recipientName = prevSpeaker.LabelShort;
+                                    }
+                                }
+                            }
+
+                            // ABSOLUTE GUARDRAIL: prevent any self-pointing arrows [A -> A] from ever being drawn!
+                            if (recipientPawn == speaker || recipientName == rawName)
+                            {
+                                recipientPawn = null;
+                                recipientName = "";
                             }
 
                             if (!DynamicColorMod.settings.isGlobalEnabled)
@@ -1957,30 +1984,6 @@ namespace RimTalkDynamicColors
                             bool isSpeakerBold;
                             Color nameColor = DynamicColorMod.GetPawnCustomColor(speaker, rawName, out isSpeakerBold);
                             string nameHex = ColorUtility.ToHtmlStringRGB(nameColor);
-
-                            Log.Warning($"[RimTalk DynamicColors] Msg loop: rawName={rawName}, speaker={speaker?.LabelShort}, hasMatchedItem={(matchedItem != null)}, recipientPawn={matchedItem?.RecipientPawn?.LabelShort}, recipientName={matchedItem?.RecipientName}");
-
-                            Pawn recipientPawn = null;
-                            string recipientName = "";
-
-                            if (matchedItem != null && matchedItem.RecipientPawn != null)
-                            {
-                                recipientPawn = matchedItem.RecipientPawn;
-                                recipientName = matchedItem.RecipientName;
-                            }
-                            else if (i + 1 < list.Count)
-                            {
-                                var prevMsg = list[i + 1];
-                                if (prevMsg != null)
-                                {
-                                    Pawn prevSpeaker = _pawnInstField?.GetValue(prevMsg) as Pawn;
-                                    if (prevSpeaker != null && prevSpeaker != speaker)
-                                    {
-                                        recipientPawn = prevSpeaker;
-                                        recipientName = prevSpeaker.LabelShort;
-                                    }
-                                }
-                            }
 
                             if (DynamicColorMod.settings.showDirectionalArrow && recipientPawn != null)
                             {
