@@ -347,13 +347,11 @@ namespace RimTalkDynamicColors
                 Type overlayType = AccessTools.TypeByName("RimTalk.UI.Overlay");
                 if (overlayType != null)
                 {
-                    MethodInfo targetMethod = AccessTools.Method(overlayType, "DrawMessageLog");
+                    MethodInfo targetMethod = AccessTools.Method(overlayType, "UpdateAndRecalculateCache");
                     if (targetMethod != null)
                     {
                         harmony.Patch(targetMethod,
-                            prefix: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Prefix)),
-                            postfix: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Postfix)),
-                            transpiler: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Transpiler))
+                            postfix: new HarmonyMethod(typeof(Patch_UpdateAndRecalculateCache_Manual), nameof(Patch_UpdateAndRecalculateCache_Manual.Postfix))
                         );
                     }
                 }
@@ -1837,7 +1835,7 @@ namespace RimTalkDynamicColors
         }
     }
 
-    public static class Patch_DrawMessageLog_Manual
+    public static class Patch_UpdateAndRecalculateCache_Manual
     {
         private static FieldInfo _cachedMessagesField;
         private static FieldInfo _pawnNameField;
@@ -1845,11 +1843,8 @@ namespace RimTalkDynamicColors
         private static FieldInfo _nameWidthField;
         private static FieldInfo _dialogueField;
 
-        public static void Prefix(object __instance)
+        public static void Postfix(object __instance)
         {
-            DynamicColorMod.IsDrawingChatLog = true;
-            DynamicColorMod.lastChatLogFrame = Time.frameCount;
-
             if (__instance != null)
             {
                 try
@@ -1872,7 +1867,7 @@ namespace RimTalkDynamicColors
 
                             if (rawName.StartsWith("<color="))
                             {
-                                continue; // Already processed this line
+                                continue; // Already processed
                             }
 
                             Pawn speaker = _pawnInstField?.GetValue(msg) as Pawn;
@@ -1892,7 +1887,22 @@ namespace RimTalkDynamicColors
                                 }
                             }
 
-                            if (!DynamicColorMod.settings.isGlobalEnabled || !DynamicColorMod.settings.enableRimTalkNameColoring)
+                            if (!DynamicColorMod.settings.isGlobalEnabled)
+                            {
+                                continue;
+                            }
+
+                            // Colorize dialogue directly in the cache!
+                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue))
+                            {
+                                string colorizedDialogue = DynamicColorMod.ColorizeString(dialogue);
+                                if (colorizedDialogue != dialogue)
+                                {
+                                    _dialogueField.SetValue(msg, colorizedDialogue);
+                                }
+                            }
+
+                            if (!DynamicColorMod.settings.enableRimTalkNameColoring)
                             {
                                 continue;
                             }
@@ -1950,20 +1960,11 @@ namespace RimTalkDynamicColors
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Log.Error($"[RimTalk DynamicColors] Error in UpdateAndRecalculateCache Postfix: {ex}");
+                }
             }
-        }
-
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            var methodLabel = AccessTools.Method(typeof(Widgets), nameof(Widgets.Label), new Type[] { typeof(Rect), typeof(string) });
-            var methodColorize = AccessTools.Method(typeof(DynamicColorMod), nameof(DynamicColorMod.ColorizeString));
-            foreach (var instruction in instructions) { if (instruction.Calls(methodLabel)) yield return new CodeInstruction(OpCodes.Call, methodColorize); yield return instruction; }
-        }
-
-        public static void Postfix(object __instance)
-        {
-            DynamicColorMod.IsDrawingChatLog = false;
         }
     }
 
