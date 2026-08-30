@@ -1191,7 +1191,7 @@ namespace RimTalkDynamicColors
             if (settings.autoApplyFavColor)
                 listing.CheckboxLabeled("  ↳ " + "RTDC_AutoApplyBold".Translate(), ref settings.autoApplyBold);
 
-            if (settings.autoApplyFavColor != (bool)settings.autoApplyFavColor) settings.RebuildCache();
+            settings.RebuildCache();
 
             listing.GapLine(6f);
 
@@ -1294,6 +1294,18 @@ namespace RimTalkDynamicColors
                 settings.nameEntries.Clear(); settings.keywordEntries.Clear();
                 settings.RebuildCache();
                 Messages.Message("RTDC_Cleared".Translate(), MessageTypeDefOf.TaskCompletion, false);
+            }
+
+            // ===== [RECOMMENDED MOD] =====
+            listing.Gap(6f);
+            listing.GapLine();
+            listing.Gap(2f);
+            string recommendText = isChineseLanguage()
+                ? $"[b]推荐模组: RimTuber 环主播[/b]  — 点击打开创意工坊页"
+                : $"[b]Recommended Mod: RimTuber 环主播[/b]  — Click to open the Workshop page";
+            if (listing.ButtonText(recommendText))
+            {
+                Application.OpenURL("https://steamcommunity.com/sharedfiles/filedetails/?id=3723552881");
             }
 
             listing.End();
@@ -1654,11 +1666,15 @@ namespace RimTalkDynamicColors
                             if (msg.SpeakerPawn != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.SpeakerPawn);
                             string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
 
-                            Color recipientVanillaColor = Color.white;
-                            if (msg.RecipientPawn != null) recipientVanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.RecipientPawn);
-                            string recipientHex = ColorUtility.ToHtmlStringRGB(recipientVanillaColor);
+                            // Use the EXACT same custom color the history window uses (GetPawnCustomColor),
+                            // not the vanilla pawn-name color — otherwise the recipient shows white in HTML.
+                            bool isRecipientBold;
+                            Color recipientColor = GetPawnCustomColor(msg.RecipientPawn, msg.RecipientName, out isRecipientBold);
+                            string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
+                            string recipientStyle = $"color: #{recipientHex};";
+                            if (isRecipientBold) recipientStyle += " font-weight: bold;";
 
-                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span style='color: #{bracketHex}; font-weight: bold;'>[</span><span class='name' style='{nameStyle}'>{badge}{msg.PawnName}</span> <span style='color: #{bracketHex};'>-></span> <span style='color: #{recipientHex}; font-weight: bold;'>{msg.RecipientName}</span><span style='color: #{bracketHex}; font-weight: bold;'>]</span>: {contentHtml}</div>");
+                            sb.AppendLine($"<div class='msg' data-pawn='{msg.PawnName}'><span style='color: #{bracketHex}; font-weight: bold;'>[</span><span class='name' style='{nameStyle}'>{badge}{msg.PawnName}</span> <span style='color: #{bracketHex};'>-></span> <span style='{recipientStyle}'>{msg.RecipientName}</span><span style='color: #{bracketHex}; font-weight: bold;'>]</span>: {contentHtml}</div>");
                         }
                         else
                         {
@@ -1895,6 +1911,45 @@ namespace RimTalkDynamicColors
         private static FieldInfo _lineHeightField;
         private static FieldInfo _isCacheDirtyField;
         private static MethodInfo _recalcMethod;
+        private static Type _rimTalkSettingsType;
+        private static Type _settingsModType;
+        private static MethodInfo _getModMethod;
+        private static MethodInfo _getSettingsMethod;
+        private static FieldInfo _overlayFontSizeField;
+
+        private static float GetOverlayFontSize()
+        {
+            try
+            {
+                if (_rimTalkSettingsType == null) _rimTalkSettingsType = AccessTools.TypeByName("RimTalk.RimTalkSettings");
+                if (_settingsModType == null) _settingsModType = AccessTools.TypeByName("RimTalk.Settings");
+                if (_rimTalkSettingsType == null || _settingsModType == null) return 13f;
+
+                if (_getModMethod == null)
+                {
+                    var lmmType = AccessTools.TypeByName("Verse.LoadedModManager");
+                    _getModMethod = lmmType?.GetMethod("GetMod",
+                        BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Type) }, null);
+                }
+
+                object mod = _getModMethod?.Invoke(null, new object[] { _settingsModType });
+                if (mod == null) return 13f;
+
+                if (_getSettingsMethod == null)
+                    _getSettingsMethod = _settingsModType.GetMethod("GetSettings");
+                MethodInfo getSettingsT = _getSettingsMethod?.MakeGenericMethod(_rimTalkSettingsType);
+                object settingsInstance = getSettingsT?.Invoke(mod, null);
+                if (settingsInstance == null) return 13f;
+
+                if (_overlayFontSizeField == null)
+                    _overlayFontSizeField = _rimTalkSettingsType.GetField("OverlayFontSize",
+                        BindingFlags.Public | BindingFlags.Instance);
+                if (_overlayFontSizeField != null)
+                    return (float)_overlayFontSizeField.GetValue(settingsInstance);
+            }
+            catch { }
+            return 13f;
+        }
 
         public static void Prefix(object __instance, Rect inRect)
         {
@@ -1927,6 +1982,19 @@ namespace RimTalkDynamicColors
                         // RimTalk calls DrawMessageLog(Rect inRect); Harmony injects the real content rect.
                         float contentWidth = Mathf.Max(60f, inRect.width);
 
+                        // ===== MATCH RIMTALK'S RENDER FONT BEFORE MEASURING =====
+                        // RimTalk's DrawMessageLog draws with GameFont.Small whose fontSize is
+                        // overridden to settings.OverlayFontSize (user-adjustable). Our Prefix runs
+                        // BEFORE that setup, so measuring with the current leftover font made the
+                        // name width too small (multiline wrap after the "->" arrow). Force the
+                        // identical font before all CalcSize/CalcHeight calls, then restore.
+                        GameFont prevFont = Text.Font;
+                        TextAnchor prevAnchor = Text.Anchor;
+                        int prevSmallFontSize = Text.fontStyles[(int)GameFont.Small].fontSize;
+                        Text.Font = GameFont.Small;
+                        Text.fontStyles[(int)GameFont.Small].fontSize = (int)GetOverlayFontSize();
+                        Text.Anchor = TextAnchor.UpperLeft;
+
                         for (int i = 0; i < list.Count; i++)
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
@@ -1958,11 +2026,14 @@ namespace RimTalkDynamicColors
                             string dialogue = _dialogueField?.GetValue(msg) as string;
 
                             // Find matched history item from SessionHistory (which has 100% accurate data)
+                            // NOTE: RimTalk already colorizes the cached Dialogue via our ColorizeString, so we
+                            // must strip all rich tags before comparing against the raw OriginalContent.
                             LogItem matchedItem = null;
+                            string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : Regex.Replace(dialogue, @"<.*?>", "").Trim();
                             for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                             {
                                 var hist = DynamicColorMod.SessionHistory[h];
-                                if (hist != null && hist.SpeakerPawn == speaker && hist.OriginalContent == dialogue)
+                                if (hist != null && hist.SpeakerPawn == speaker && hist.OriginalContent == cleanDialogueForMatch)
                                 {
                                     matchedItem = hist;
                                     break;
@@ -2007,14 +2078,19 @@ namespace RimTalkDynamicColors
                             }
 
                             // Colorize dialogue directly in the cache!
+                            // GUARD: RimTalk 1.6+ already runs our ColorizeString when building the cache
+                            // (its BuildFinalRichText calls RimTalkDynamicColors.DynamicColorMod.ColorizeString),
+                            // so the cached Dialogue may already contain rich tags. Re-coloring it would
+                            // produce nested <color> tags. Skip when tags are already present.
                             string colorizedDialogue = dialogue;
-                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue))
+                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue)
+                                && !dialogue.Contains("<color=") && !dialogue.Contains("<b>"))
                             {
                                 colorizedDialogue = DynamicColorMod.ColorizeString(dialogue);
-                                if (colorizedDialogue != dialogue)
-                                {
-                                    _dialogueField.SetValue(msg, colorizedDialogue);
-                                }
+                            }
+                            if (colorizedDialogue != dialogue)
+                            {
+                                _dialogueField.SetValue(msg, colorizedDialogue);
                             }
 
                             float nameWidth = 40f;
@@ -2079,16 +2155,10 @@ namespace RimTalkDynamicColors
                             // ===== [RECALCULATE LINE HEIGHT] =====
                             // This ensures the window allocates the perfect amount of height for the colored dialogue,
                             // completely preventing any truncation/clipping/folding at the end of the text!
+                            // NOTE: Text.Font is ALREADY GameFont.Small @ OverlayFontSize here (set above the
+                            // loop), matching exactly what RimTalk's DrawMessageLog body will use to render.
                             if (_lineHeightField != null)
                             {
-                                // MEASURE WITH THE SAME FONT THAT WILL ACTUALLY RENDER.
-                                // The Prefix runs immediately before DrawMessageLog; RimTalk does not switch fonts
-                                // inside DrawMessageLog, so the current Text.Font here IS the render font. Forcing
-                                // GameFont.Small here caused width/height mismatch (name wrapping / folded text).
-                                GameFont prevFont = Text.Font;
-                                TextAnchor prevAnchor = Text.Anchor;
-                                Text.Anchor = TextAnchor.UpperLeft;
-
                                 float totalWidth = contentWidth;
                                 float dialogueWidth = totalWidth - nameWidth - 5f;
                                 if (dialogueWidth < 20f)
@@ -2107,12 +2177,17 @@ namespace RimTalkDynamicColors
 
                                 float calculatedLineHeight = Mathf.Max(textHeight, nameHeight) + 2f;
 
-                                Text.Font = prevFont;
-                                Text.Anchor = prevAnchor;
-
                                 _lineHeightField.SetValue(msg, calculatedLineHeight);
                             }
                         }
+
+                        // Restore the original font now that all measurements are done. RimTalk's
+                        // DrawMessageLog body (which runs AFTER this Prefix) sets its own font at
+                        // the start and restores it at the end, so we must NOT leave our override
+                        // in place when the body begins.
+                        Text.Font = prevFont;
+                        Text.fontStyles[(int)GameFont.Small].fontSize = prevSmallFontSize;
+                        Text.Anchor = prevAnchor;
                     }
                 }
                 catch (Exception ex)

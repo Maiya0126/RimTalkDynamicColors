@@ -57,5 +57,10 @@ Craftable at Crafting Spot:
 [b]Error: "Json deserialization failed"?[/b]
 This is caused by the AI model generating bad data, not this mod. Please ignore it.
 这是AI模型偶尔抽风输出错误格式导致的，不是Mod的问题，请直接忽略。
+
+[h1]Recommended Mod / 推荐模组[/h1]
+[b]RimTuber 环主播[/b] (by Maiya0126) — Turn your colonists into live-streamers and watch them stream, chat, raid, and build a followership on an in-game platform! Perfect paired with RimTalk for an immersive livestream chat experience.
+[b]RimTuber 环主播[/b] (作者:Maiya0126) — 让殖民地小人成为主播，在游戏内直播、聊天、互动！与 RimTalk 搭配体验沉浸式直播聊天。
+Workshop: steam://url/CommunityFilePage/3723552881
   </description>
 </ModMetaData>
