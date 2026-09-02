@@ -87,7 +87,12 @@
 	<RTDC_ClearBracketStyles>Clear Bracket Styles</RTDC_ClearBracketStyles>
 	<RTDC_Italic>Italic</RTDC_Italic>
 	<RTDC_ShowDirectionalArrow>Show Directional Arrow</RTDC_ShowDirectionalArrow>
-	<RTDC_ShowDirectionalArrowDesc>Show names in [Speaker ➔ Recipient] format in history log and exports.</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_ShowDirectionalArrowDesc>Show arrow-to-recipient on the RimTalk Overlay chat. New RimTalk already renders this natively, so keep OFF. Legacy RimTalk users should turn ON.</RTDC_ShowDirectionalArrowDesc>
 	<RTDC_EnableRelationEffects>Enable Relation Effects</RTDC_EnableRelationEffects>
 	<RTDC_EnableRelationEffectsDesc>Show a relationship status badge (Lover ❤, Rival ☠, Friend ★) in front of the name when specific relationships exist between speaker and recipient.</RTDC_EnableRelationEffectsDesc>
+	<RTDC_ShowDirectionalArrowHistory>Show Directional Arrow in History / Exports</RTDC_ShowDirectionalArrowHistory>
+	<RTDC_ShowDirectionalArrowHistoryDesc>Show the [Speaker ➔ Recipient] arrow in the history window and TXT/HTML exports, independent of the main arrow toggle. ON by default.</RTDC_ShowDirectionalArrowHistoryDesc>
+	<RTDC_ShowDirectionalArrowVertical>Vertical Arrow Layout</RTDC_ShowDirectionalArrowVertical>
+	<RTDC_ShowDirectionalArrowVerticalDesc>When the main directional arrow is ON, stack names vertically as [A-&gt; newline B] so long names don't compress the chat width. OFF = single-line [A -&gt; B]. Only visible when the main arrow toggle is enabled.</RTDC_ShowDirectionalArrowVerticalDesc>
+	<RTDC_ModVersionLabel>RimTalk DynamicColors v{0}</RTDC_ModVersionLabel>
 </LanguageData>

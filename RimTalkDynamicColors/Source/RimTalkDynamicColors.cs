@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -82,8 +82,11 @@ namespace RimTalkDynamicColors
         // [新增] 是否在历史记录窗口显示头像
         public bool showAvatarInHistory = true;
 
-        public bool showDirectionalArrow = true;
+public bool showDirectionalArrow = true;
+        public bool showDirectionalArrowInHistory = true;
+        public bool showDirectionalArrowVertical = false;
         public bool enableRelationEffects = true;
+        public bool enableRelationEffectsInHistory = true;
 
         public bool enableRimTalkNameColoring = true;
         public bool enableChatColoring = true;
@@ -235,6 +238,8 @@ namespace RimTalkDynamicColors
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
             Scribe_Values.Look(ref showAvatarInHistory, "showAvatarInHistory", true); // 保存头像开关
             Scribe_Values.Look(ref showDirectionalArrow, "showDirectionalArrow", true);
+            Scribe_Values.Look(ref showDirectionalArrowInHistory, "showDirectionalArrowInHistory", true);
+            Scribe_Values.Look(ref showDirectionalArrowVertical, "showDirectionalArrowVertical", false);
             Scribe_Values.Look(ref enableRelationEffects, "enableRelationEffects", true);
             Scribe_Values.Look(ref enableRimTalkNameColoring, "enableRimTalkNameColoring", true);
             Scribe_Values.Look(ref enableChatColoring, "enableChatColoring", true);
@@ -281,6 +286,7 @@ namespace RimTalkDynamicColors
         public static Pawn CurrentProcessingPawn = null;
         public static Pawn CurrentRecipientPawn = null;
         public static Harmony harmony;
+        public static string VersionString = "1.0.11";
 
         public static bool IsDrawingBubble = false;
         public static bool IsDrawingChatLog = false;
@@ -355,6 +361,18 @@ namespace RimTalkDynamicColors
                             postfix: new HarmonyMethod(typeof(Patch_DrawMessageLog_Manual), nameof(Patch_DrawMessageLog_Manual.Postfix))
                         );
                     }
+
+                    // VERTICAL arrow layout: fully own the name column (speaker/target/arrow/brackets) so long
+                    // names never compress chat width. Skipped unless showDirectionalArrow &&
+                    // showDirectionalArrowVertical are both ON (the prefix returns true otherwise, letting
+                    // RimTalk draw its native horizontal [A -> B]).
+                    MethodInfo drawParticipantsMethod = AccessTools.Method(overlayType, "DrawParticipants");
+                    if (drawParticipantsMethod != null)
+                    {
+                        harmony.Patch(drawParticipantsMethod,
+                            prefix: new HarmonyMethod(typeof(Patch_RimTalkDrawParticipants_Vertical), nameof(Patch_RimTalkDrawParticipants_Vertical.Prefix))
+                        );
+                    }
                 }
 
                 Type talkServiceType = AccessTools.TypeByName("RimTalk.Service.TalkService");
@@ -414,6 +432,18 @@ namespace RimTalkDynamicColors
         {
             isBold = false;
             if (settings == null) return Color.white;
+
+            // RimTalk's player avatar has NO backing Pawn (its name is user-set in RimTalk settings,
+            // e.g. "超凡智能"). Keep the player-name color matching RimTalk's native user color so
+            // [colonist -> player] arrows look identical to RimTalk's own overlay rendering.
+            if (pawn == null && !string.IsNullOrEmpty(pawnName))
+            {
+                string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
+                if (!string.IsNullOrEmpty(playerName) && Regex.Replace(pawnName, @"<.*?>", "").Trim() == playerName)
+                {
+                    return new Color(1f, 0.85f, 0.4f); // RimTalk native player/user color
+                }
+            }
 
             if (settings.IsManualNameEntry(pawnName) && settings.GetCombinedCache().TryGetValue(pawnName, out StyleData style))
             {
@@ -944,7 +974,7 @@ namespace RimTalkDynamicColors
                     string cleanPawnName = Regex.Replace(item.PawnName, @"<.*?>", "").Trim();
                     string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : Regex.Replace(item.RecipientName, @"<.*?>", "").Trim();
 
-                    string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient))
+                    string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(cleanRecipient))
                         ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
                         : $"[{cleanPawnName}]";
 
@@ -1009,9 +1039,9 @@ namespace RimTalkDynamicColors
                 // ABSOLUTE GUARDRAIL: never draw a self-pointing arrow in the history log window either.
                 if (cleanRecipient == cleanPawnName) cleanRecipient = "";
 
-                string displayNameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient))
-                    ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
-                    : $"[{cleanPawnName}]";
+string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(cleanRecipient))
+                        ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
+                        : $"[{cleanPawnName}]";
 
                 Vector2 nameSize = Text.CalcSize(displayNameStr);
                 float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
@@ -1044,7 +1074,7 @@ namespace RimTalkDynamicColors
                 string bracketHex = ColorUtility.ToHtmlStringRGB(vanillaColor);
                 GUI.color = Color.white;
 
-                if (settings.showDirectionalArrow && !string.IsNullOrEmpty(cleanRecipient) && cleanRecipient != cleanPawnName)
+                if (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(cleanRecipient) && cleanRecipient != cleanPawnName)
                 {
                     bool isRecipientBold;
                     Color recipientColor = GetPawnCustomColor(item.RecipientPawn, cleanRecipient, out isRecipientBold);
@@ -1152,6 +1182,27 @@ namespace RimTalkDynamicColors
             DrawTwoColumnCheckbox(listing,
                 "RTDC_ShowDirectionalArrow".Translate(), ref settings.showDirectionalArrow, "RTDC_ShowDirectionalArrowDesc".Translate(),
                 "RTDC_EnableRelationEffects".Translate(), ref settings.enableRelationEffects, "RTDC_EnableRelationEffectsDesc".Translate());
+
+            // 历史记录窗 / 导出 的指向箭头独立开关（默认开，独立于主箭头开关）
+            listing.CheckboxLabeled("RTDC_ShowDirectionalArrowHistory".Translate(), ref settings.showDirectionalArrowInHistory,
+                "RTDC_ShowDirectionalArrowHistoryDesc".Translate());
+
+            // 纵向指向布局开关：仅在主指向箭头开启时才显示（避免横/纵冲突）
+            if (settings.showDirectionalArrow)
+            {
+                listing.CheckboxLabeled("RTDC_ShowDirectionalArrowVertical".Translate(), ref settings.showDirectionalArrowVertical,
+                    "RTDC_ShowDirectionalArrowVerticalDesc".Translate());
+            }
+
+            listing.Gap(0f);
+
+            listing.Gap(2f);
+            // 模组版本号（灰色小字，不显眼）
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+            Widgets.Label(listing.GetRect(18f), "RTDC_ModVersionLabel".Translate(DynamicColorMod.VersionString));
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
 
             listing.Gap(4f);
             if (listing.ButtonText("RTDC_OpenHistoryWindow".Translate(), "RTDC_OpenHistoryWindowDesc".Translate()))
@@ -1301,8 +1352,8 @@ namespace RimTalkDynamicColors
             listing.GapLine();
             listing.Gap(2f);
             string recommendText = isChineseLanguage()
-                ? $"[b]推荐模组: RimTuber 环主播[/b]  — 点击打开创意工坊页"
-                : $"[b]Recommended Mod: RimTuber 环主播[/b]  — Click to open the Workshop page";
+                ? $"<b>推荐模组: RimTuber 环主播</b>  — 点击打开创意工坊页"
+                : $"<b>Recommended Mod: RimTuber 环主播</b>  — Click to open the Workshop page";
             if (listing.ButtonText(recommendText))
             {
                 Application.OpenURL("https://steamcommunity.com/sharedfiles/filedetails/?id=3723552881");
@@ -1554,7 +1605,7 @@ namespace RimTalkDynamicColors
                 {
                     badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
                 }
-                string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                string nameStr = (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(msg.RecipientName))
                     ? $"{badge}{msg.PawnName} -> {msg.RecipientName}"
                     : msg.PawnName;
 
@@ -1660,7 +1711,7 @@ namespace RimTalkDynamicColors
                             .Replace("</i>", "</em>");
                         contentHtml = Regex.Replace(contentHtml, @"<color=#([0-9A-Fa-f]{6})>(.*?)</color>", "<span style='color:#$1'>$2</span>");
 
-                        if (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                        if (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(msg.RecipientName))
                         {
                             Color vanillaColor = Color.white;
                             if (msg.SpeakerPawn != null) vanillaColor = PawnNameColorUtility.PawnNameColorOf(msg.SpeakerPawn);
@@ -1696,7 +1747,7 @@ namespace RimTalkDynamicColors
                         {
                             badge = GetRelationshipPrefix(msg.SpeakerPawn, msg.RecipientPawn);
                         }
-                        string nameStr = (settings.showDirectionalArrow && !string.IsNullOrEmpty(msg.RecipientName))
+                        string nameStr = (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(msg.RecipientName))
                             ? $"{badge}{msg.PawnName} -> {msg.RecipientName}"
                             : msg.PawnName;
                         sb.AppendLine($"[{nameStr}]: {msg.OriginalContent}");
@@ -1916,6 +1967,50 @@ namespace RimTalkDynamicColors
         private static MethodInfo _getModMethod;
         private static MethodInfo _getSettingsMethod;
         private static FieldInfo _overlayFontSizeField;
+        private static FieldInfo _playerNameField;
+        private static FieldInfo _speakerLabelField;
+        private static FieldInfo _targetLabelField;
+        private static FieldInfo _targetNameField;
+        private static FieldInfo _speakerWidthField;
+        private static FieldInfo _targetWidthField;
+        private static FieldInfo _targetPawnInstField;
+        private static FieldInfo _leftBracketWidthField;
+        private static FieldInfo _directionWidthField;
+        private static FieldInfo _rightBracketWidthField;
+
+        public static string GetRimTalkPlayerName()
+        {
+            try
+            {
+                if (_rimTalkSettingsType == null) _rimTalkSettingsType = AccessTools.TypeByName("RimTalk.RimTalkSettings");
+                if (_settingsModType == null) _settingsModType = AccessTools.TypeByName("RimTalk.Settings");
+                if (_rimTalkSettingsType == null || _settingsModType == null) return null;
+
+                if (_getModMethod == null)
+                {
+                    var lmmType = AccessTools.TypeByName("Verse.LoadedModManager");
+                    _getModMethod = lmmType?.GetMethod("GetMod",
+                        BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Type) }, null);
+                }
+
+                object mod = _getModMethod?.Invoke(null, new object[] { _settingsModType });
+                if (mod == null) return null;
+
+                if (_getSettingsMethod == null)
+                    _getSettingsMethod = _settingsModType.GetMethod("GetSettings");
+                MethodInfo getSettingsT = _getSettingsMethod?.MakeGenericMethod(_rimTalkSettingsType);
+                object settingsInstance = getSettingsT?.Invoke(mod, null);
+                if (settingsInstance == null) return null;
+
+                if (_playerNameField == null)
+                    _playerNameField = _rimTalkSettingsType.GetField("PlayerName",
+                        BindingFlags.Public | BindingFlags.Instance);
+                if (_playerNameField != null)
+                    return _playerNameField.GetValue(settingsInstance) as string;
+            }
+            catch { }
+            return null;
+        }
 
         private static float GetOverlayFontSize()
         {
@@ -2003,6 +2098,18 @@ namespace RimTalkDynamicColors
                             if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
                             if (_dialogueField == null) _dialogueField = AccessTools.Field(t, "Dialogue") ?? AccessTools.Field(t, "dialogue");
                             if (_lineHeightField == null) _lineHeightField = AccessTools.Field(t, "LineHeight") ?? AccessTools.Field(t, "lineHeight");
+                            // NEW-STYLE RimTalk fields (present since the segmented [A -> B] layout). When these
+                            // exist, RimTalk draws participant segments itself — we only colorize labels.
+                            if (_speakerLabelField == null) _speakerLabelField = AccessTools.Field(t, "SpeakerLabel") ?? AccessTools.Field(t, "speakerLabel");
+                            if (_targetLabelField == null) _targetLabelField = AccessTools.Field(t, "TargetLabel") ?? AccessTools.Field(t, "targetLabel");
+                if (_targetNameField == null) _targetNameField = AccessTools.Field(t, "TargetName") ?? AccessTools.Field(t, "targetName");
+                            if (_speakerWidthField == null) _speakerWidthField = AccessTools.Field(t, "SpeakerWidth") ?? AccessTools.Field(t, "speakerWidth");
+                            if (_targetWidthField == null) _targetWidthField = AccessTools.Field(t, "TargetWidth") ?? AccessTools.Field(t, "targetWidth");
+                            if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
+                            if (_targetPawnInstField == null) _targetPawnInstField = AccessTools.Field(t, "TargetPawnInstance") ?? AccessTools.Field(t, "targetPawnInstance");
+                            if (_leftBracketWidthField == null) _leftBracketWidthField = AccessTools.Field(t, "LeftBracketWidth") ?? AccessTools.Field(t, "leftBracketWidth");
+                            if (_directionWidthField == null) _directionWidthField = AccessTools.Field(t, "DirectionWidth") ?? AccessTools.Field(t, "directionWidth");
+                            if (_rightBracketWidthField == null) _rightBracketWidthField = AccessTools.Field(t, "RightBracketWidth") ?? AccessTools.Field(t, "rightBracketWidth");
 
                             string rawName = _pawnNameField.GetValue(msg) as string;
                             if (string.IsNullOrEmpty(rawName)) continue;
@@ -2028,12 +2135,21 @@ namespace RimTalkDynamicColors
                             // Find matched history item from SessionHistory (which has 100% accurate data)
                             // NOTE: RimTalk already colorizes the cached Dialogue via our ColorizeString, so we
                             // must strip all rich tags before comparing against the raw OriginalContent.
+                            // RimTalk can also TRUNCATE the newest cached line (FitDialogueToHeight adds a
+                            // trailing "…"), so use bidirectional prefix tolerance (≥20 chars) as a fallback.
+string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                             LogItem matchedItem = null;
                             string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : Regex.Replace(dialogue, @"<.*?>", "").Trim();
+                            string cleanedDialogueNoEllipsis = cleanDialogueForMatch.TrimEnd('…', '.');
                             for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                             {
                                 var hist = DynamicColorMod.SessionHistory[h];
-                                if (hist != null && hist.SpeakerPawn == speaker && hist.OriginalContent == cleanDialogueForMatch)
+                                if (hist == null || hist.SpeakerPawn != speaker) continue;
+                                bool exact = hist.OriginalContent == cleanDialogueForMatch;
+                                bool prefixTolerant = cleanDialogueForMatch.Length >= 20 &&
+                                    (hist.OriginalContent.StartsWith(cleanedDialogueNoEllipsis) ||
+                                     cleanedDialogueNoEllipsis.StartsWith(hist.OriginalContent));
+                                if (exact || prefixTolerant)
                                 {
                                     matchedItem = hist;
                                     break;
@@ -2043,13 +2159,23 @@ namespace RimTalkDynamicColors
                             Pawn recipientPawn = null;
                             string recipientName = "";
 
-                            if (matchedItem != null && matchedItem.RecipientPawn != null && matchedItem.RecipientPawn != speaker)
+                            // Adopt the matched recipient whenever it has a usable NAME — even when the
+                            // recipient has no backing Pawn (the player "超凡智能" style names resolve to
+                            // RecipientPawn == null but the name itself is 100% accurate).
+                            string cleanRecipientMatched = matchedItem == null ? "" :
+                                string.IsNullOrEmpty(matchedItem.RecipientName) ? "" : Regex.Replace(matchedItem.RecipientName, @"<.*?>", "").Trim();
+                            if (matchedItem != null &&
+                                !string.IsNullOrEmpty(cleanRecipientMatched) &&
+                                cleanRecipientMatched != cleanRawName)
                             {
-                                recipientPawn = matchedItem.RecipientPawn;
+                                recipientPawn = matchedItem.RecipientPawn;   // may be null (player)
                                 recipientName = matchedItem.RecipientName;
                             }
                             else if (i + 1 < list.Count)
                             {
+                                // LAST RESORT (kept): chronological guess — the previous cache row's
+                                // speaker is the recipient. Only used when we could not resolve a real
+                                // recipient above. Never shows a self-pointing arrow.
                                 var prevMsg = list[i + 1];
                                 if (prevMsg != null)
                                 {
@@ -2066,7 +2192,12 @@ namespace RimTalkDynamicColors
                             string cleanRecipientName = string.IsNullOrEmpty(recipientName) ? "" : Regex.Replace(recipientName, @"<.*?>", "").Trim();
 
                             // ABSOLUTE GUARDRAIL: prevent any self-pointing arrows [A -> A] from ever being drawn!
-                            if (recipientPawn == speaker || cleanRecipientName == cleanRawName)
+                            // Player names ("超凡智能") have no Pawn, so only compare name-vs-name when the
+                            // speaker is also a player (speaker name matches the player name). Never kill a
+                            // valid "colonist -> player" arrow.
+                            bool speakerIsPlayer = !string.IsNullOrEmpty(playerName) && cleanRawName == playerName;
+                            if (recipientPawn == speaker ||
+                                (cleanRecipientName == cleanRawName && !speakerIsPlayer))
                             {
                                 recipientPawn = null;
                                 cleanRecipientName = "";
@@ -2116,48 +2247,139 @@ namespace RimTalkDynamicColors
                                     Color recipientColor = DynamicColorMod.GetPawnCustomColor(recipientPawn, cleanRecipientName, out isRecipientBold);
                                     string recipientHex = ColorUtility.ToHtmlStringRGB(recipientColor);
 
-                                    string formattedDisplayName = $"<color=#{nameHex}>{badge}{cleanRawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{cleanRecipientName}</color>";
-                                    string plainDisplayName = $"[{badge}{cleanRawName} -> {cleanRecipientName}]";
-
-                                    _pawnNameField.SetValue(msg, formattedDisplayName);
-
-                                    if (_nameWidthField != null)
+// NEW-STYLE (RimTalk with SpeakerLabel/TargetLabel): RimTalk's DrawParticipants
+                                    // draws [A -> B] itself using per-segment widths. We must NOT touch PawnName/
+                                    // NameWidth/LineHeight (that's what caused the overlap + lost coloring). Only
+                                    // colorize the two labels and keep the segment widths aligned.
+                                    if (_speakerLabelField != null && _targetLabelField != null)
                                     {
-                                        nameWidth = Text.CalcSize(plainDisplayName).x + 2f; // Tiny safety margin (mirrors RimTalk's no-margin NameWidth)
-                                        _nameWidthField.SetValue(msg, nameWidth);
+                                        string coloredSpeaker = $"<color=#{nameHex}>{badge}{cleanRawName}</color>";
+                                        string coloredTarget = $"<color=#{recipientHex}>{cleanRecipientName}</color>";
+
+                                        if (DynamicColorMod.settings.showDirectionalArrowVertical)
+                                        {
+                                            // VERTICAL layout: write plain colored single names (no \n, no arrow here);
+                                            // Patch_RimTalkDrawParticipants_Vertical (registered in TryPatchRimTalkSafe)
+                                            // fully replaces RimTalk's DrawParticipants and draws:
+                                            //   line1: [A]          (speaker, identity-colored brackets)
+                                            //   line2: -> [B]       (arrow + target, identity-colored brackets)
+                                            // Dialogue rect is computed by RimTalk from NameWidth and stays top-aligned,
+                                            // i.e. on A's line — exactly the requested layout.
+                                            _speakerLabelField.SetValue(msg, coloredSpeaker);
+                                            _targetLabelField.SetValue(msg, coloredTarget);
+
+                                            float badgeWv = string.IsNullOrEmpty(badge) ? 0f : Text.CalcSize(badge).x;
+                                            float speakerWv = Text.CalcSize(cleanRawName).x + badgeWv;
+                                            float targetWv = Text.CalcSize(cleanRecipientName).x;
+                                            if (_speakerWidthField != null) _speakerWidthField.SetValue(msg, speakerWv);
+                                            if (_targetWidthField != null) _targetWidthField.SetValue(msg, targetWv);
+
+                                            float leftBW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(msg) : 0f;
+                                            float arrowWv = Text.CalcSize("->").x;
+                                            float rightBW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(msg) : 0f;
+                                            // line1 = "[A]" ;  line2 = "-> [B]"   (indent not needed with arrows at column start)
+                                            float line1W = leftBW + speakerWv + rightBW;
+                                            float line2W = arrowWv + leftBW + targetWv + rightBW;
+                                            float widestLine = Mathf.Max(line1W, line2W);
+                                            if (_nameWidthField != null)
+                                                _nameWidthField.SetValue(msg, Mathf.Max((float)_nameWidthField.GetValue(msg), widestLine));
+                                            if (_lineHeightField != null)
+                                                _lineHeightField.SetValue(msg, Mathf.Max((float)_lineHeightField.GetValue(msg), Text.LineHeightOf(GameFont.Small) * 2f + 2f));
+                                        }
+                                        else
+                                        {
+                                            _speakerLabelField.SetValue(msg, coloredSpeaker);
+                                            _targetLabelField.SetValue(msg, coloredTarget);
+                                            // RimTalk 1.2.2+: unless OverlayShowTargetName is ON, its cache sets TargetName=null so                                             // DrawParticipants would SKIP the arrow/target. Force TargetName + DirectionWidth back so                                             // [A -> B] renders natively with our colored labels.                                             if (_targetNameField != null)                                                 _targetNameField.SetValue(msg, cleanRecipientName);                                             if (_directionWidthField != null)                                                 _directionWidthField.SetValue(msg, Text.CalcSize(" -> ").x);
+                                        }
+
+                                        // Measure segment widths under the same font RimTalk will render with.
+                                        // Badge width must be included so [♥ A -> B] never overflows the name column.
+                                        float speakerWidthV = Text.CalcSize(cleanRawName).x;
+                                        float targetWidthV = _targetLabelField == null ? 0f : Text.CalcSize(cleanRecipientName).x;
+                                        float badgeWidthV = string.IsNullOrEmpty(badge) ? 0f : Text.CalcSize(badge).x;
+                                        if (_speakerWidthField != null)
+                                            _speakerWidthField.SetValue(msg, speakerWidthV + badgeWidthV);
+                                        if (_targetWidthField != null)
+                                            _targetWidthField.SetValue(msg, targetWidthV);
+
+                                        // RimTalk's dialogue rect starts at rowRect.x + NameWidth + TextPadding, so
+                                        // NameWidth MUST be >= left bracket + speaker(+badge) + direction + target
+                                        // + right bracket. Take the max with RimTalk's cached value (respects aligned
+                                        // name-column mode and never shrinks the column).
+                                        float leftBracketW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(msg) : 0f;
+                                        float directionW = _directionWidthField != null ? (float)_directionWidthField.GetValue(msg) : 0f;
+                                        float rightBracketW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(msg) : 0f;
+                                        float segmentTotal = leftBracketW + speakerWidthV + badgeWidthV + directionW + targetWidthV + rightBracketW;
+                                        if (_nameWidthField != null)
+                                        {
+                                            float cachedNameWidth = (float)_nameWidthField.GetValue(msg);
+                                            _nameWidthField.SetValue(msg, Mathf.Max(cachedNameWidth, segmentTotal));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // LEGACY RimTalk: draws the whole PawnName in one rect.
+                                        string formattedDisplayName = $"<color=#{nameHex}>{badge}{cleanRawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{cleanRecipientName}</color>";
+                                        string plainDisplayName = $"[{badge}{cleanRawName} -> {cleanRecipientName}]";
+
+                                        _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                        if (_nameWidthField != null)
+                                        {
+                                            nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
+                                            _nameWidthField.SetValue(msg, nameWidth);
+                                        }
                                     }
                                 }
-                                else
+else
                                 {
-                                    string formattedDisplayName = $"<color=#{nameHex}>{cleanRawName}</color>";
-                                    string plainDisplayName = $"[{cleanRawName}]";
-
-                                    _pawnNameField.SetValue(msg, formattedDisplayName);
-
-                                    if (_nameWidthField != null)
+                                    // Mod arrow is OFF → do NOT draw our own arrow/target, but STILL color the
+                                    // speaker name (never leave it white). RimTalk keeps drawing ITS native
+                                    // directional display (accurate even for animals); we only ensure the name
+                                    // is tinted. Legacy RimTalk (no SpeakerLabel) gets a colored PawnName.
+                                    if (_speakerLabelField != null)
                                     {
-                                        nameWidth = Text.CalcSize(plainDisplayName).x + 2f; // Tiny safety margin (mirrors RimTalk's no-margin NameWidth)
-                                        _nameWidthField.SetValue(msg, nameWidth);
+                                        // NEW-STYLE: color the speaker label ONLY (no arrow, no target). RimTalk
+                                        // draws its own native arrow + target using our tinted speaker name.
+                                        string coloredSpeaker = $"<color=#{nameHex}>{cleanRawName}</color>";
+                                        _speakerLabelField.SetValue(msg, coloredSpeaker);
+                                    }
+                                    else
+                                    {
+                                        // LEGACY: write the whole PawnName + NameWidth.
+                                        string formattedDisplayName = $"<color=#{nameHex}>{cleanRawName}</color>";
+                                        string plainDisplayName = $"[{cleanRawName}]" ;
+
+                                        _pawnNameField.SetValue(msg, formattedDisplayName);
+
+                                        if (_nameWidthField != null)
+                                        {
+                                            nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
+                                            _nameWidthField.SetValue(msg, nameWidth);
+                                        }
                                     }
                                 }
                             }
                             else
                             {
-                                // If name coloring is disabled, still ensure nameWidth is calculated on clean names
-                                string plainDisplayName = string.IsNullOrEmpty(cleanRecipientName) ? $"[{cleanRawName}]" : $"[{cleanRawName} -> {cleanRecipientName}]";
-                                if (_nameWidthField != null)
+                                // If name coloring is disabled, still ensure widths are correct.
+                                // NEW-STYLE: leave NameWidth/LineHeight to RimTalk; LEGACY: set NameWidth for clean names.
+                                if (_speakerLabelField == null && _nameWidthField != null)
                                 {
-                                    nameWidth = Text.CalcSize(plainDisplayName).x + 2f; // Tiny safety margin (mirrors RimTalk's no-margin NameWidth)
+                                    string plainDisplayName = string.IsNullOrEmpty(cleanRecipientName) ? $"[{cleanRawName}]" : $"[{cleanRawName} -> {cleanRecipientName}]";
+                                    nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
                                     _nameWidthField.SetValue(msg, nameWidth);
                                 }
                             }
 
                             // ===== [RECALCULATE LINE HEIGHT] =====
-                            // This ensures the window allocates the perfect amount of height for the colored dialogue,
-                            // completely preventing any truncation/clipping/folding at the end of the text!
+                            // NEW-STYLE RimTalk computes its own LineHeight from its own segment layout
+                            // (name column alignment + FitDialogueToHeight). Overriding it here is what
+                            // caused rows to overlap, so only LEGACY RimTalk gets our recalculation.
                             // NOTE: Text.Font is ALREADY GameFont.Small @ OverlayFontSize here (set above the
                             // loop), matching exactly what RimTalk's DrawMessageLog body will use to render.
-                            if (_lineHeightField != null)
+                            if (_speakerLabelField == null && _lineHeightField != null)
                             {
                                 float totalWidth = contentWidth;
                                 float dialogueWidth = totalWidth - nameWidth - 5f;
@@ -2203,6 +2425,88 @@ namespace RimTalkDynamicColors
         }
     }
 
+
+    // ===== VERTICAL DIRECTIONAL NAMES (self-drawn; replaces RimTalk's native horizontal segments) =====
+    // When "main arrow" AND "vertical stack" are both ON, RimTalk's DrawParticipants Prefix returns false
+    // and we draw the name column ourselves as two lines (brackets/arrow use speaker identity color):
+    //   line1: [A]
+    //   line2: -> [B]
+    // Dialogue stays top-aligned (on A's line) because RimTalk's dialogue rect starts right after NameWidth,
+    // which we set to the widest of the two lines, and dialogue is drawn upper-left anchored.
+    // ===== VERTICAL DIRECTIONAL NAMES (self-drawn; replaces RimTalk's native horizontal segments) =====
+    // When "main arrow" AND "vertical stack" are both ON, RimTalk's DrawParticipants Prefix returns false
+    // and we draw the name column ourselves as two lines (brackets/arrow use speaker identity color):
+    //   line1: [A]
+    //   line2: -> [B]
+    // Both lines stay inside the NAME COLUMN width so long names never push into the dialogue column;
+    // the dialogue (drawn by RimTalk right after NameWidth) can then wrap for 2-3 lines without ever
+    // overlapping the second name line.
+    public static class Patch_RimTalkDrawParticipants_Vertical
+    {
+        private static FieldInfo _speakerLabelField;
+        private static FieldInfo _targetLabelField;
+        private static FieldInfo _targetPawnInstField;
+        private static FieldInfo _pawnInstField;
+        private static FieldInfo _nameWidthField;
+
+        public static bool Prefix(Rect rowRect, object message)
+        {
+            if (DynamicColorMod.settings == null ||
+                !DynamicColorMod.settings.isGlobalEnabled ||
+                !DynamicColorMod.settings.showDirectionalArrow ||
+                !DynamicColorMod.settings.showDirectionalArrowVertical ||
+                message == null)
+            {
+                return true; // horizontal / arrow off -> let RimTalk draw its native [A -> B]
+            }
+
+            try
+            {
+                System.Type t = message.GetType();
+                if (_speakerLabelField == null) _speakerLabelField = AccessTools.Field(t, "SpeakerLabel") ?? AccessTools.Field(t, "speakerLabel");
+                if (_targetLabelField == null) _targetLabelField = AccessTools.Field(t, "TargetLabel") ?? AccessTools.Field(t, "targetLabel");
+                if (_targetPawnInstField == null) _targetPawnInstField = AccessTools.Field(t, "TargetPawnInstance") ?? AccessTools.Field(t, "targetPawnInstance");
+                if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
+                if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
+                if (_speakerLabelField == null || _targetLabelField == null) return true;
+
+                string speakerLabel = _speakerLabelField.GetValue(message) as string;
+                string targetLabel = _targetLabelField.GetValue(message) as string;
+                if (string.IsNullOrEmpty(targetLabel)) return true; // monologue -> RimTalk draws [A]
+
+                Pawn speakerPawn = _pawnInstField?.GetValue(message) as Pawn;
+                Color bracketColor = Color.white;
+                if (speakerPawn != null) bracketColor = PawnNameColorUtility.PawnNameColorOf(speakerPawn);
+                string bracketHex = ColorUtility.ToHtmlStringRGB(bracketColor);
+
+                string line1 = $"<color=#{bracketHex}>[</color>{speakerLabel}<color=#{bracketHex}>]</color>";
+                string line2 = $"<color=#{bracketHex}>-></color> <color=#{bracketHex}>[</color>{targetLabel}<color=#{bracketHex}>]</color>";
+
+                float nameWidth = _nameWidthField != null
+                    ? Mathf.Max(1f, Mathf.Min((float)_nameWidthField.GetValue(message), rowRect.width))
+                    : rowRect.width;
+
+                float lineHeight = rowRect.height * 0.5f;
+                if (lineHeight < 1f) lineHeight = 1f;
+
+                GameFont prevFont = Text.Font;
+                TextAnchor prevAnchor = Text.Anchor;
+                Text.Anchor = TextAnchor.UpperLeft;
+
+                Widgets.Label(new Rect(rowRect.x, rowRect.y, nameWidth, lineHeight), line1);
+                Widgets.Label(new Rect(rowRect.x, rowRect.y + lineHeight, nameWidth, lineHeight), line2);
+
+                Text.Anchor = prevAnchor;
+                Text.Font = prevFont;
+
+                return false; // skip RimTalk's own horizontal participant drawing
+            }
+            catch
+            {
+                return true;
+            }
+        }
+    }
     public static class Patch_TalkService_CreateInteraction
     {
         private static PropertyInfo _propTalkName;

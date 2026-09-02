@@ -87,7 +87,14 @@
 	<RTDC_ClearBracketStyles>기호 스타일 초기화</RTDC_ClearBracketStyles>
 	<RTDC_Italic>기울임꼴</RTDC_Italic>
 	<RTDC_ShowDirectionalArrow>대화 대상 화살표 표시</RTDC_ShowDirectionalArrow>
-	<RTDC_ShowDirectionalArrowDesc>기록 창 및 내보내기 로그에서 이름을 [말하는 사람 ➔ 듣는 사람] 형식으로 표시합니다.</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_ShowDirectionalArrowDesc>RimTalk 오버레이 채팅 창에 화살표를 표시합니다. 최신 RimTalk에는 이 기능이 내장되어 있으므로 꺼두는 것을 권장합니다. 구버전 RimTalk 사용자는 켜주세요.</RTDC_ShowDirectionalArrowDesc>
 	<RTDC_EnableRelationEffects>관계 동적 효과 활성화</RTDC_EnableRelationEffects>
 	<RTDC_EnableRelationEffectsDesc>말하는 사람과 듣는 사람 사이에 특정 관계(배우자/연인 ❤, 숙적/원수 ☠, 친한 친구 ★)가 있을 때 이름 앞에 상태 배지를 표시합니다.</RTDC_EnableRelationEffectsDesc>
+	<RTDC_ShowDirectionalArrowHistory>기록 창에 화살표 표시</RTDC_ShowDirectionalArrowHistory>
+	<RTDC_ShowDirectionalArrowHistoryDesc>채팅 기록 창과 TXT/HTML 내보내기에 화살표를 표시합니다. 위의 주 화살표 스위치와 독립적이며 기본적으로 켜져 있습니다.</RTDC_ShowDirectionalArrowHistoryDesc>
+	<RTDC_ModVersionLabel>RimTalk DynamicColors v{0}</RTDC_ModVersionLabel>
+
+	<RTDC_ShowDirectionalArrowVertical>Vertical Arrow Layout</RTDC_ShowDirectionalArrowVertical>
+
+	<RTDC_ShowDirectionalArrowVerticalDesc>Only shown when the main arrow is ON. Stack the name as two lines: line1 = A, line2 = arrow and B. Long names no longer compress the dialogue width. Dialogue stays on the A line.</RTDC_ShowDirectionalArrowVerticalDesc>
 </LanguageData>

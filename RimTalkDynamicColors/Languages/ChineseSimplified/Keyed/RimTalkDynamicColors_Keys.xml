@@ -87,7 +87,12 @@
 	<RTDC_ClearBracketStyles>清空符号样式</RTDC_ClearBracketStyles>
 	<RTDC_Italic>斜体</RTDC_Italic>
 	<RTDC_ShowDirectionalArrow>显示对话指向箭头</RTDC_ShowDirectionalArrow>
-	<RTDC_ShowDirectionalArrowDesc>在历史记录窗口以及导出日志中，将人名显示为 [说话者 ➔ 听众] 形式。</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_ShowDirectionalArrowDesc>在 RimTalk Overlay 聊天窗口中显示指向箭头。新版 RimTalk 已原生集成箭头显示，建议保持关闭；旧版 RimTalk 建议打开。</RTDC_ShowDirectionalArrowDesc>
 	<RTDC_EnableRelationEffects>启用关系动态特效</RTDC_EnableRelationEffects>
 	<RTDC_EnableRelationEffectsDesc>当说话者与听众有特定关系（夫妻/恋人 ❤、宿敌/仇人 ☠、挚友 ★）时，在名字前显示状态徽章。</RTDC_EnableRelationEffectsDesc>
+	<RTDC_ShowDirectionalArrowHistory>历史记录窗显示指向箭头</RTDC_ShowDirectionalArrowHistory>
+	<RTDC_ShowDirectionalArrowHistoryDesc>在对话记录窗口以及 TXT/HTML 导出中显示指向箭头，独立于上方主箭头开关，默认开启。</RTDC_ShowDirectionalArrowHistoryDesc>
+	<RTDC_ModVersionLabel>RimTalk DynamicColors v{0}</RTDC_ModVersionLabel>
+	<RTDC_ShowDirectionalArrowVertical>纵向箭头布局</RTDC_ShowDirectionalArrowVertical>
+	<RTDC_ShowDirectionalArrowVerticalDesc>当上方主指向箭头开启时，将人名纵向排列显示为 [A-&gt; 换行 B]，避免长名字侵占对话宽度；关闭则用单行 [A -&gt; B]。仅当主箭头开关开启时本项才可见。</RTDC_ShowDirectionalArrowVerticalDesc>
 </LanguageData>

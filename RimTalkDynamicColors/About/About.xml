@@ -1,9 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>RimTalk DynamicColors 边缘世谭-言出多彩</name>
   <author>Maiya0126</author>
   <packageId>Maiya.RimTalkDynamicColors</packageId>
-  <modVersion>1.0.09</modVersion>
+  <modVersion>1.0.12</modVersion>
   
   <supportedVersions>
     <li>1.6</li>

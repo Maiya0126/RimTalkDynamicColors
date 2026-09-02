@@ -87,7 +87,14 @@
 	<RTDC_ClearBracketStyles>Очистить стили скобок</RTDC_ClearBracketStyles>
 	<RTDC_Italic>Курсив</RTDC_Italic>
 	<RTDC_ShowDirectionalArrow>Показывать стрелку направления разговора</RTDC_ShowDirectionalArrow>
-	<RTDC_ShowDirectionalArrowDesc>Отображать имена в формате [Говорящий ➔ Слушатель] в окне истории и экспортируемых журналах.</RTDC_ShowDirectionalArrowDesc>
+	<RTDC_ShowDirectionalArrowDesc>Показывать стрелку направления в окне чата Overlay RimTalk. В новой версии RimTalk стрелка уже встроена, поэтому рекомендуется оставить выключенной. Пользователям старой версии RimTalk следует включить.</RTDC_ShowDirectionalArrowDesc>
 	<RTDC_EnableRelationEffects>Включить динамические эффекты отношений</RTDC_EnableRelationEffects>
 	<RTDC_EnableRelationEffectsDesc>Показывать значок статуса отношений (Супруг/Возлюбленный ❤, Соперник ☠, Друг ★) перед именем, если между говорящим и слушателем существуют определённые отношения.</RTDC_EnableRelationEffectsDesc>
+	<RTDC_ShowDirectionalArrowHistory>Показывать стрелку в окне истории</RTDC_ShowDirectionalArrowHistory>
+	<RTDC_ShowDirectionalArrowHistoryDesc>Показывать стрелки направления в окне истории чата и в экспорте TXT/HTML. Независимо от главного переключателя выше; включено по умолчанию.</RTDC_ShowDirectionalArrowHistoryDesc>
+	<RTDC_ModVersionLabel>RimTalk DynamicColors v{0}</RTDC_ModVersionLabel>
+
+	<RTDC_ShowDirectionalArrowVertical>Vertical Arrow Layout</RTDC_ShowDirectionalArrowVertical>
+
+	<RTDC_ShowDirectionalArrowVerticalDesc>Only shown when the main arrow is ON. Stack the name as two lines: line1 = A, line2 = arrow and B. Long names no longer compress the dialogue width. Dialogue stays on the A line.</RTDC_ShowDirectionalArrowVerticalDesc>
 </LanguageData>
