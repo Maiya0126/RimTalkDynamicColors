@@ -128,6 +128,18 @@ public bool showDirectionalArrow = true;
 
         private Dictionary<string, StyleData> _combinedCache;
         private Regex _cachedRegexPattern;
+        private float _lastRebuildTime = float.MinValue;
+        private const float RebuildThrottleInterval = 1f;
+
+        public void RebuildCacheThrottled()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (now - _lastRebuildTime >= RebuildThrottleInterval)
+            {
+                _lastRebuildTime = now;
+                RebuildCache();
+            }
+        }
 
         public bool IsManualNameEntry(string name) { if (nameEntries == null) return false; for (int i = 0; i < nameEntries.Count; i++) { if (nameEntries[i].text == name) return true; } return false; }
         public Dictionary<string, StyleData> GetCombinedCache() { if (_combinedCache == null) RebuildCache(); return _combinedCache; }
@@ -317,6 +329,8 @@ public bool showDirectionalArrow = true;
         public static List<FieldInfo> BubblePawnFields = new List<FieldInfo>();
         private static Dictionary<string, Pawn> _nameToPawnCache = new Dictionary<string, Pawn>();
 
+        internal static readonly Regex RichTagRegex = new Regex("<.*?>", RegexOptions.Compiled);
+
         private static Dictionary<string, RainbowCacheEntry> _rainbowCache = new Dictionary<string, RainbowCacheEntry>();
         private const float RainbowCacheUpdateInterval = 0.05f;
 
@@ -439,7 +453,7 @@ public bool showDirectionalArrow = true;
             if (pawn == null && !string.IsNullOrEmpty(pawnName))
             {
                 string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
-                if (!string.IsNullOrEmpty(playerName) && Regex.Replace(pawnName, @"<.*?>", "").Trim() == playerName)
+                if (!string.IsNullOrEmpty(playerName) && RichTagRegex.Replace(pawnName, "").Trim() == playerName)
                 {
                     return new Color(1f, 0.85f, 0.4f); // RimTalk native player/user color
                 }
@@ -588,7 +602,7 @@ public bool showDirectionalArrow = true;
         public static Pawn FindPawnByName(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
-            string cleanName = Regex.Replace(name, @"<.*?>", "");
+            string cleanName = RichTagRegex.Replace(name, "");
             if (_nameToPawnCache.TryGetValue(cleanName, out Pawn cachedPawn)) return cachedPawn;
             if (Current.ProgramState != ProgramState.Playing || Current.Game == null || Current.Game.Maps == null) return null;
             var pawns = PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive;
@@ -971,8 +985,8 @@ public bool showDirectionalArrow = true;
                     {
                         badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                     }
-                    string cleanPawnName = Regex.Replace(item.PawnName, @"<.*?>", "").Trim();
-                    string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : Regex.Replace(item.RecipientName, @"<.*?>", "").Trim();
+                    string cleanPawnName = RichTagRegex.Replace(item.PawnName, "").Trim();
+                    string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : RichTagRegex.Replace(item.RecipientName, "").Trim();
 
                     string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNullOrEmpty(cleanRecipient))
                         ? $"[{badge}{cleanPawnName} -> {cleanRecipient}]"
@@ -1033,8 +1047,8 @@ public bool showDirectionalArrow = true;
                 {
                     badge = GetRelationshipPrefix(item.SpeakerPawn, item.RecipientPawn);
                 }
-                string cleanPawnName = Regex.Replace(item.PawnName, @"<.*?>", "").Trim();
-                string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : Regex.Replace(item.RecipientName, @"<.*?>", "").Trim();
+                string cleanPawnName = RichTagRegex.Replace(item.PawnName, "").Trim();
+                string cleanRecipient = string.IsNullOrEmpty(item.RecipientName) ? "" : RichTagRegex.Replace(item.RecipientName, "").Trim();
 
                 // ABSOLUTE GUARDRAIL: never draw a self-pointing arrow in the history log window either.
                 if (cleanRecipient == cleanPawnName) cleanRecipient = "";
@@ -1539,7 +1553,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                 {
                     Find.WindowStack.Add(new ColorPickerWindow(entry.color, Color.white, entry.text, (newColor) => {
                         entry.color = newColor;
-                        settings.RebuildCache();
+            settings.RebuildCacheThrottled();
                     }));
                 }
                 curX += colorBtnW + 2f;
@@ -1954,8 +1968,8 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
 
     public static class Patch_DrawMessageLog_Manual
     {
-        private static FieldInfo _cachedMessagesField;
-        private static FieldInfo _pawnNameField;
+        private static readonly Regex RichTagRegex = new Regex("<.*?>", RegexOptions.Compiled);
+        private static FieldInfo _cachedMessagesField;        private static FieldInfo _pawnNameField;
         private static FieldInfo _pawnInstField;
         private static FieldInfo _nameWidthField;
         private static FieldInfo _dialogueField;
@@ -1966,8 +1980,11 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static Type _settingsModType;
         private static MethodInfo _getModMethod;
         private static MethodInfo _getSettingsMethod;
+        private static MethodInfo _getSettingsTMethod;
         private static FieldInfo _overlayFontSizeField;
         private static FieldInfo _playerNameField;
+        private static string _cachedPlayerName;
+        private static int _cachedPlayerNameFrame = -1;
         private static FieldInfo _speakerLabelField;
         private static FieldInfo _targetLabelField;
         private static FieldInfo _targetNameField;
@@ -1978,7 +1995,38 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static FieldInfo _directionWidthField;
         private static FieldInfo _rightBracketWidthField;
 
+        private static void SetStringFieldIfChanged(FieldInfo field, object msg, string value)
+        {
+            if (field == null) return;
+            try
+            {
+                if (field.GetValue(msg) as string != value)
+                    field.SetValue(msg, value);
+            }
+            catch { }
+        }
+
+        private static void SetFloatFieldIfChanged(FieldInfo field, object msg, float value)
+        {
+            if (field == null) return;
+            try
+            {
+                if ((float)field.GetValue(msg) != value)
+                    field.SetValue(msg, value);
+            }
+            catch { }
+        }
+
         public static string GetRimTalkPlayerName()
+        {
+            int frame = Time.frameCount;
+            if (_cachedPlayerNameFrame == frame) return _cachedPlayerName;
+            _cachedPlayerNameFrame = frame;
+            _cachedPlayerName = GetRimTalkPlayerNameImpl();
+            return _cachedPlayerName;
+        }
+
+        private static string GetRimTalkPlayerNameImpl()
         {
             try
             {
@@ -1998,8 +2046,9 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
 
                 if (_getSettingsMethod == null)
                     _getSettingsMethod = _settingsModType.GetMethod("GetSettings");
-                MethodInfo getSettingsT = _getSettingsMethod?.MakeGenericMethod(_rimTalkSettingsType);
-                object settingsInstance = getSettingsT?.Invoke(mod, null);
+                if (_getSettingsTMethod == null && _getSettingsMethod != null && _rimTalkSettingsType != null)
+                    _getSettingsTMethod = _getSettingsMethod.MakeGenericMethod(_rimTalkSettingsType);
+                object settingsInstance = _getSettingsTMethod?.Invoke(mod, null);
                 if (settingsInstance == null) return null;
 
                 if (_playerNameField == null)
@@ -2032,8 +2081,9 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
 
                 if (_getSettingsMethod == null)
                     _getSettingsMethod = _settingsModType.GetMethod("GetSettings");
-                MethodInfo getSettingsT = _getSettingsMethod?.MakeGenericMethod(_rimTalkSettingsType);
-                object settingsInstance = getSettingsT?.Invoke(mod, null);
+                if (_getSettingsTMethod == null && _getSettingsMethod != null && _rimTalkSettingsType != null)
+                    _getSettingsTMethod = _getSettingsMethod.MakeGenericMethod(_rimTalkSettingsType);
+                object settingsInstance = _getSettingsTMethod?.Invoke(mod, null);
                 if (settingsInstance == null) return 13f;
 
                 if (_overlayFontSizeField == null)
@@ -2090,6 +2140,10 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                         Text.fontStyles[(int)GameFont.Small].fontSize = (int)GetOverlayFontSize();
                         Text.Anchor = TextAnchor.UpperLeft;
 
+                        // Player name is frame-stable: resolve ONCE per frame (cached by GetRimTalkPlayerName),
+                        // used by both the guardrail below and GetPawnCustomColor's player-color branch.
+                        string playerName = GetRimTalkPlayerName();
+
                         for (int i = 0; i < list.Count; i++)
                         {
                             var msg = list[i]; if (msg == null) continue; Type t = msg.GetType();
@@ -2123,7 +2177,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             }
 
                             // Strip existing rich text tags to prevent nested tag corruption!
-                            string cleanRawName = Regex.Replace(rawName, @"<.*?>", "").Trim();
+                            string cleanRawName = RichTagRegex.Replace(rawName, "").Trim();
                             if (string.IsNullOrEmpty(cleanRawName)) cleanRawName = rawName;
 
                             // Use PawnInstance first (always clean, never touched by us), not the cache name.
@@ -2137,9 +2191,8 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             // must strip all rich tags before comparing against the raw OriginalContent.
                             // RimTalk can also TRUNCATE the newest cached line (FitDialogueToHeight adds a
                             // trailing "…"), so use bidirectional prefix tolerance (≥20 chars) as a fallback.
-string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                             LogItem matchedItem = null;
-                            string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : Regex.Replace(dialogue, @"<.*?>", "").Trim();
+                            string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : RichTagRegex.Replace(dialogue, "").Trim();
                             string cleanedDialogueNoEllipsis = cleanDialogueForMatch.TrimEnd('…', '.');
                             for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                             {
@@ -2163,7 +2216,7 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                             // recipient has no backing Pawn (the player "超凡智能" style names resolve to
                             // RecipientPawn == null but the name itself is 100% accurate).
                             string cleanRecipientMatched = matchedItem == null ? "" :
-                                string.IsNullOrEmpty(matchedItem.RecipientName) ? "" : Regex.Replace(matchedItem.RecipientName, @"<.*?>", "").Trim();
+                                string.IsNullOrEmpty(matchedItem.RecipientName) ? "" : RichTagRegex.Replace(matchedItem.RecipientName, "").Trim();
                             if (matchedItem != null &&
                                 !string.IsNullOrEmpty(cleanRecipientMatched) &&
                                 cleanRecipientMatched != cleanRawName)
@@ -2189,7 +2242,7 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                             }
 
                             // Clean recipient name as well
-                            string cleanRecipientName = string.IsNullOrEmpty(recipientName) ? "" : Regex.Replace(recipientName, @"<.*?>", "").Trim();
+                            string cleanRecipientName = string.IsNullOrEmpty(recipientName) ? "" : RichTagRegex.Replace(recipientName, "").Trim();
 
                             // ABSOLUTE GUARDRAIL: prevent any self-pointing arrows [A -> A] from ever being drawn!
                             // Player names ("超凡智能") have no Pawn, so only compare name-vs-name when the
@@ -2265,14 +2318,14 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                                             //   line2: -> [B]       (arrow + target, identity-colored brackets)
                                             // Dialogue rect is computed by RimTalk from NameWidth and stays top-aligned,
                                             // i.e. on A's line — exactly the requested layout.
-                                            _speakerLabelField.SetValue(msg, coloredSpeaker);
-                                            _targetLabelField.SetValue(msg, coloredTarget);
+                                            SetStringFieldIfChanged(_speakerLabelField, msg, coloredSpeaker);
+                                            SetStringFieldIfChanged(_targetLabelField, msg, coloredTarget);
 
                                             float badgeWv = string.IsNullOrEmpty(badge) ? 0f : Text.CalcSize(badge).x;
                                             float speakerWv = Text.CalcSize(cleanRawName).x + badgeWv;
                                             float targetWv = Text.CalcSize(cleanRecipientName).x;
-                                            if (_speakerWidthField != null) _speakerWidthField.SetValue(msg, speakerWv);
-                                            if (_targetWidthField != null) _targetWidthField.SetValue(msg, targetWv);
+                                            if (_speakerWidthField != null) SetFloatFieldIfChanged(_speakerWidthField, msg, speakerWv);
+                                            if (_targetWidthField != null) SetFloatFieldIfChanged(_targetWidthField, msg, targetWv);
 
                                             float leftBW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(msg) : 0f;
                                             float arrowWv = Text.CalcSize("->").x;
@@ -2282,15 +2335,15 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                                             float line2W = arrowWv + leftBW + targetWv + rightBW;
                                             float widestLine = Mathf.Max(line1W, line2W);
                                             if (_nameWidthField != null)
-                                                _nameWidthField.SetValue(msg, Mathf.Max((float)_nameWidthField.GetValue(msg), widestLine));
+                                                SetFloatFieldIfChanged(_nameWidthField, msg, Mathf.Max((float)_nameWidthField.GetValue(msg), widestLine));
                                             if (_lineHeightField != null)
-                                                _lineHeightField.SetValue(msg, Mathf.Max((float)_lineHeightField.GetValue(msg), Text.LineHeightOf(GameFont.Small) * 2f + 2f));
+                                                SetFloatFieldIfChanged(_lineHeightField, msg, Mathf.Max((float)_lineHeightField.GetValue(msg), Text.LineHeightOf(GameFont.Small) * 2f + 2f));
                                         }
                                         else
                                         {
-                                            _speakerLabelField.SetValue(msg, coloredSpeaker);
-                                            _targetLabelField.SetValue(msg, coloredTarget);
-                                            // RimTalk 1.2.2+: unless OverlayShowTargetName is ON, its cache sets TargetName=null so                                             // DrawParticipants would SKIP the arrow/target. Force TargetName + DirectionWidth back so                                             // [A -> B] renders natively with our colored labels.                                             if (_targetNameField != null)                                                 _targetNameField.SetValue(msg, cleanRecipientName);                                             if (_directionWidthField != null)                                                 _directionWidthField.SetValue(msg, Text.CalcSize(" -> ").x);
+                                            SetStringFieldIfChanged(_speakerLabelField, msg, coloredSpeaker);
+                                            SetStringFieldIfChanged(_targetLabelField, msg, coloredTarget);
+                                            // RimTalk 1.2.2+: unless OverlayShowTargetName is ON, its cache sets TargetName=null so                                             // DrawParticipants would SKIP the arrow/target. Force TargetName + DirectionWidth back so                                             // [A -> B] renders natively with our colored labels.                                             if (_targetNameField != null)                                                 SetStringFieldIfChanged(_targetNameField, msg, cleanRecipientName);                                             if (_directionWidthField != null)                                                 SetFloatFieldIfChanged(_directionWidthField, msg, Text.CalcSize(" -> ").x);
                                         }
 
                                         // Measure segment widths under the same font RimTalk will render with.
@@ -2299,9 +2352,9 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                                         float targetWidthV = _targetLabelField == null ? 0f : Text.CalcSize(cleanRecipientName).x;
                                         float badgeWidthV = string.IsNullOrEmpty(badge) ? 0f : Text.CalcSize(badge).x;
                                         if (_speakerWidthField != null)
-                                            _speakerWidthField.SetValue(msg, speakerWidthV + badgeWidthV);
+                                            SetFloatFieldIfChanged(_speakerWidthField, msg, speakerWidthV + badgeWidthV);
                                         if (_targetWidthField != null)
-                                            _targetWidthField.SetValue(msg, targetWidthV);
+                                            SetFloatFieldIfChanged(_targetWidthField, msg, targetWidthV);
 
                                         // RimTalk's dialogue rect starts at rowRect.x + NameWidth + TextPadding, so
                                         // NameWidth MUST be >= left bracket + speaker(+badge) + direction + target
@@ -2314,7 +2367,7 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                                         if (_nameWidthField != null)
                                         {
                                             float cachedNameWidth = (float)_nameWidthField.GetValue(msg);
-                                            _nameWidthField.SetValue(msg, Mathf.Max(cachedNameWidth, segmentTotal));
+                                            SetFloatFieldIfChanged(_nameWidthField, msg, Mathf.Max(cachedNameWidth, segmentTotal));
                                         }
                                     }
                                     else
@@ -2323,12 +2376,12 @@ string playerName = Patch_DrawMessageLog_Manual.GetRimTalkPlayerName();
                                         string formattedDisplayName = $"<color=#{nameHex}>{badge}{cleanRawName}</color> <color=#{bracketHex}>-></color> <color=#{recipientHex}>{cleanRecipientName}</color>";
                                         string plainDisplayName = $"[{badge}{cleanRawName} -> {cleanRecipientName}]";
 
-                                        _pawnNameField.SetValue(msg, formattedDisplayName);
+                                        SetStringFieldIfChanged(_pawnNameField, msg, formattedDisplayName);
 
                                         if (_nameWidthField != null)
                                         {
                                             nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
-                                            _nameWidthField.SetValue(msg, nameWidth);
+                                            SetFloatFieldIfChanged(_nameWidthField, msg, nameWidth);
                                         }
                                     }
                                 }
@@ -2343,7 +2396,7 @@ else
                                         // NEW-STYLE: color the speaker label ONLY (no arrow, no target). RimTalk
                                         // draws its own native arrow + target using our tinted speaker name.
                                         string coloredSpeaker = $"<color=#{nameHex}>{cleanRawName}</color>";
-                                        _speakerLabelField.SetValue(msg, coloredSpeaker);
+                                        SetStringFieldIfChanged(_speakerLabelField, msg, coloredSpeaker);
                                     }
                                     else
                                     {
@@ -2351,12 +2404,12 @@ else
                                         string formattedDisplayName = $"<color=#{nameHex}>{cleanRawName}</color>";
                                         string plainDisplayName = $"[{cleanRawName}]" ;
 
-                                        _pawnNameField.SetValue(msg, formattedDisplayName);
+                                        SetStringFieldIfChanged(_pawnNameField, msg, formattedDisplayName);
 
                                         if (_nameWidthField != null)
                                         {
                                             nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
-                                            _nameWidthField.SetValue(msg, nameWidth);
+                                            SetFloatFieldIfChanged(_nameWidthField, msg, nameWidth);
                                         }
                                     }
                                 }
@@ -2369,7 +2422,7 @@ else
                                 {
                                     string plainDisplayName = string.IsNullOrEmpty(cleanRecipientName) ? $"[{cleanRawName}]" : $"[{cleanRawName} -> {cleanRecipientName}]";
                                     nameWidth = Text.CalcSize(plainDisplayName).x + 2f;
-                                    _nameWidthField.SetValue(msg, nameWidth);
+                                    SetFloatFieldIfChanged(_nameWidthField, msg, nameWidth);
                                 }
                             }
 
@@ -2399,7 +2452,7 @@ else
 
                                 float calculatedLineHeight = Mathf.Max(textHeight, nameHeight) + 2f;
 
-                                _lineHeightField.SetValue(msg, calculatedLineHeight);
+                                SetFloatFieldIfChanged(_lineHeightField, msg, calculatedLineHeight);
                             }
                         }
 
