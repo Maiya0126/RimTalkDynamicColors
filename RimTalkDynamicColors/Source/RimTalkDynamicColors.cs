@@ -298,7 +298,7 @@ public bool showDirectionalArrow = true;
         public static Pawn CurrentProcessingPawn = null;
         public static Pawn CurrentRecipientPawn = null;
         public static Harmony harmony;
-        public static string VersionString = "1.0.11";
+        public static string VersionString = "1.0.12";
 
         public static bool IsDrawingBubble = false;
         public static bool IsDrawingChatLog = false;
@@ -1154,7 +1154,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
             listing.Begin(viewRect);
 
             Text.Font = GameFont.Medium;
-            listing.Label("RTDC_SettingsTitle".Translate());
+            listing.Label("RTDC_SettingsTitle".Translate() + " v" + VersionString);
             Text.Font = GameFont.Small;
             listing.GapLine(6f);
 

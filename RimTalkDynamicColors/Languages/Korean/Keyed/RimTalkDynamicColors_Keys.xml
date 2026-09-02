@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <LanguageData>
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
-	<RTDC_SettingsTitle>RimTalk DynamicColors 설정</RTDC_SettingsTitle>
+	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
 
 	<RTDC_HistoryTab>DynamicColors 채팅 로그</RTDC_HistoryTab>
 	<RTDC_ChatHistoryViewer>채팅 기록 뷰어</RTDC_ChatHistoryViewer>
