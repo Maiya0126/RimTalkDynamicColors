@@ -376,15 +376,15 @@ public bool showDirectionalArrow = true;
                         );
                     }
 
-                    // VERTICAL arrow layout: fully own the name column (speaker/target/arrow/brackets) so long
-                    // names never compress chat width. Skipped unless showDirectionalArrow &&
-                    // showDirectionalArrowVertical are both ON (the prefix returns true otherwise, letting
-                    // RimTalk draw its native horizontal [A -> B]).
+                    // Participant column takeover: whenever the mod is enabled and a two-participant
+                    // [A -> B] line is shown, the Prefix fully owns the brackets/arrow so colors follow
+                    // each pawn's own identity (visitor speaker -> cyan brackets) instead of white.
+                    // Vertical stack layout is also handled inside (line1 [A], line2 -> [B]).
                     MethodInfo drawParticipantsMethod = AccessTools.Method(overlayType, "DrawParticipants");
                     if (drawParticipantsMethod != null)
                     {
                         harmony.Patch(drawParticipantsMethod,
-                            prefix: new HarmonyMethod(typeof(Patch_RimTalkDrawParticipants_Vertical), nameof(Patch_RimTalkDrawParticipants_Vertical.Prefix))
+                            prefix: new HarmonyMethod(typeof(Patch_RimTalkDrawParticipants), nameof(Patch_RimTalkDrawParticipants.Prefix))
                         );
                     }
                 }
@@ -2312,10 +2312,10 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                                         if (DynamicColorMod.settings.showDirectionalArrowVertical)
                                         {
                                             // VERTICAL layout: write plain colored single names (no \n, no arrow here);
-                                            // Patch_RimTalkDrawParticipants_Vertical (registered in TryPatchRimTalkSafe)
+                                            // Patch_RimTalkDrawParticipants (registered in TryPatchRimTalkSafe)
                                             // fully replaces RimTalk's DrawParticipants and draws:
                                             //   line1: [A]          (speaker, identity-colored brackets)
-                                            //   line2: -> [B]       (arrow + target, identity-colored brackets)
+                                            //   line2: -> [B]       (white arrow; [B] brackets use recipient identity color)
                                             // Dialogue rect is computed by RimTalk from NameWidth and stays top-aligned,
                                             // i.e. on A's line — exactly the requested layout.
                                             SetStringFieldIfChanged(_speakerLabelField, msg, coloredSpeaker);
@@ -2479,38 +2479,51 @@ else
     }
 
 
-    // ===== VERTICAL DIRECTIONAL NAMES (self-drawn; replaces RimTalk's native horizontal segments) =====
-    // When "main arrow" AND "vertical stack" are both ON, RimTalk's DrawParticipants Prefix returns false
-    // and we draw the name column ourselves as two lines (brackets/arrow use speaker identity color):
-    //   line1: [A]
-    //   line2: -> [B]
-    // Dialogue stays top-aligned (on A's line) because RimTalk's dialogue rect starts right after NameWidth,
-    // which we set to the widest of the two lines, and dialogue is drawn upper-left anchored.
-    // ===== VERTICAL DIRECTIONAL NAMES (self-drawn; replaces RimTalk's native horizontal segments) =====
-    // When "main arrow" AND "vertical stack" are both ON, RimTalk's DrawParticipants Prefix returns false
-    // and we draw the name column ourselves as two lines (brackets/arrow use speaker identity color):
-    //   line1: [A]
-    //   line2: -> [B]
-    // Both lines stay inside the NAME COLUMN width so long names never push into the dialogue column;
-    // the dialogue (drawn by RimTalk right after NameWidth) can then wrap for 2-3 lines without ever
-    // overlapping the second name line.
-    public static class Patch_RimTalkDrawParticipants_Vertical
+    // ===== DIRECTIONAL PARTICIPANT NAMES (self-drawn; replaces RimTalk's native segments) =====
+    // When the mod is enabled and a two-participant [A -> B] line is shown, this Prefix fully owns the
+    // participant column so that BRACKETS follow each pawn's own identity color (e.g. a visitor speaker
+    // gets cyan brackets) instead of RimTalk's default white, while the arrow "->" stays default white.
+    //
+    // VERTICAL mode (main arrow ON + vertical stack ON): draws two lines inside the name column:
+    //   line1: [A]       <- brackets use speaker A's identity color
+    //   line2: -> [B]    <- arrow white, [B] brackets use recipient B's identity color
+    //                         (B has no Pawn -> falls back to A's identity color)
+    //
+    // HORIZONTAL mode: replicates RimTalk's native segmented layout but re-colors:
+    //   [A -> B]  <- outer brackets use speaker A's identity color, arrow stays white
+    // Names keep our colored SpeakerLabel/TargetLabel and remain clickable (jump to pawn).
+    public static class Patch_RimTalkDrawParticipants
     {
         private static FieldInfo _speakerLabelField;
         private static FieldInfo _targetLabelField;
         private static FieldInfo _targetPawnInstField;
         private static FieldInfo _pawnInstField;
         private static FieldInfo _nameWidthField;
+        private static FieldInfo _leftBracketWidthField;
+        private static FieldInfo _speakerWidthField;
+        private static FieldInfo _directionWidthField;
+        private static FieldInfo _targetWidthField;
+        private static FieldInfo _rightBracketWidthField;
+        private static FieldInfo _isUserEnteredField;
+        private static MethodInfo _drawClickableNameMethod;
+
+        private static void DrawName(Rect rect, string label, Pawn pawn)
+        {
+            if (_drawClickableNameMethod != null)
+            {
+                try { _drawClickableNameMethod.Invoke(null, new object[] { rect, label, pawn, false }); return; }
+                catch { }
+            }
+            Widgets.Label(rect, label);
+        }
 
         public static bool Prefix(Rect rowRect, object message)
         {
             if (DynamicColorMod.settings == null ||
                 !DynamicColorMod.settings.isGlobalEnabled ||
-                !DynamicColorMod.settings.showDirectionalArrow ||
-                !DynamicColorMod.settings.showDirectionalArrowVertical ||
                 message == null)
             {
-                return true; // horizontal / arrow off -> let RimTalk draw its native [A -> B]
+                return true; // mod disabled -> RimTalk draws natively
             }
 
             try
@@ -2521,38 +2534,111 @@ else
                 if (_targetPawnInstField == null) _targetPawnInstField = AccessTools.Field(t, "TargetPawnInstance") ?? AccessTools.Field(t, "targetPawnInstance");
                 if (_pawnInstField == null) _pawnInstField = AccessTools.Field(t, "PawnInstance") ?? AccessTools.Field(t, "pawnInstance");
                 if (_nameWidthField == null) _nameWidthField = AccessTools.Field(t, "NameWidth") ?? AccessTools.Field(t, "nameWidth");
+                if (_leftBracketWidthField == null) _leftBracketWidthField = AccessTools.Field(t, "LeftBracketWidth") ?? AccessTools.Field(t, "leftBracketWidth");
+                if (_speakerWidthField == null) _speakerWidthField = AccessTools.Field(t, "SpeakerWidth") ?? AccessTools.Field(t, "speakerWidth");
+                if (_directionWidthField == null) _directionWidthField = AccessTools.Field(t, "DirectionWidth") ?? AccessTools.Field(t, "directionWidth");
+                if (_targetWidthField == null) _targetWidthField = AccessTools.Field(t, "TargetWidth") ?? AccessTools.Field(t, "targetWidth");
+                if (_rightBracketWidthField == null) _rightBracketWidthField = AccessTools.Field(t, "RightBracketWidth") ?? AccessTools.Field(t, "rightBracketWidth");
+                if (_isUserEnteredField == null) _isUserEnteredField = AccessTools.Field(t, "IsUserEntered") ?? AccessTools.Field(t, "isUserEntered");
                 if (_speakerLabelField == null || _targetLabelField == null) return true;
+
+                // User-typed messages (announcements / direct user text) keep RimTalk's native styling
+                // (its DrawMessageLog sets AnnounceNameColor/UserNameColor before calling DrawParticipants).
+                if (_isUserEnteredField != null)
+                {
+                    try { if ((bool)_isUserEnteredField.GetValue(message)) return true; } catch { }
+                }
+
+                if (_drawClickableNameMethod == null)
+                {
+                    Type utilType = AccessTools.TypeByName("RimTalk.UI.UIUtil");
+                    _drawClickableNameMethod = utilType == null ? null
+                        : AccessTools.Method(utilType, "DrawClickablePawnName",
+                            new Type[] { typeof(Rect), typeof(string), typeof(Pawn), typeof(bool) });
+                }
 
                 string speakerLabel = _speakerLabelField.GetValue(message) as string;
                 string targetLabel = _targetLabelField.GetValue(message) as string;
-                if (string.IsNullOrEmpty(targetLabel)) return true; // monologue -> RimTalk draws [A]
+                if (string.IsNullOrEmpty(targetLabel)) return true; // monologue -> RimTalk draws [A] natively
 
                 Pawn speakerPawn = _pawnInstField?.GetValue(message) as Pawn;
-                Color bracketColor = Color.white;
-                if (speakerPawn != null) bracketColor = PawnNameColorUtility.PawnNameColorOf(speakerPawn);
-                string bracketHex = ColorUtility.ToHtmlStringRGB(bracketColor);
+                Pawn targetPawn = _targetPawnInstField?.GetValue(message) as Pawn;
 
-                string line1 = $"<color=#{bracketHex}>[</color>{speakerLabel}<color=#{bracketHex}>]</color>";
-                string line2 = $"<color=#{bracketHex}>-></color> <color=#{bracketHex}>[</color>{targetLabel}<color=#{bracketHex}>]</color>";
+                Color speakerColor = Color.white;
+                if (speakerPawn != null) speakerColor = PawnNameColorUtility.PawnNameColorOf(speakerPawn);
+                string speakerHex = ColorUtility.ToHtmlStringRGB(speakerColor);
 
-                float nameWidth = _nameWidthField != null
-                    ? Mathf.Max(1f, Mathf.Min((float)_nameWidthField.GetValue(message), rowRect.width))
-                    : rowRect.width;
+                bool vertical = DynamicColorMod.settings.showDirectionalArrow && DynamicColorMod.settings.showDirectionalArrowVertical;
 
-                float lineHeight = rowRect.height * 0.5f;
-                if (lineHeight < 1f) lineHeight = 1f;
+                if (vertical)
+                {
+                    // line1: [A] -> speaker identity brackets; line2: -> [B] -> arrow white, B brackets = B identity
+                    string line1 = $"<color=#{speakerHex}>[</color>{speakerLabel}<color=#{speakerHex}>]</color>";
 
-                GameFont prevFont = Text.Font;
-                TextAnchor prevAnchor = Text.Anchor;
+                    Color targetColor = targetPawn != null ? PawnNameColorUtility.PawnNameColorOf(targetPawn) : speakerColor;
+                    string targetHex = ColorUtility.ToHtmlStringRGB(targetColor);
+                    string line2 = $"<color=#FFFFFF>-></color> <color=#{targetHex}>[</color>{targetLabel}<color=#{targetHex}>]</color>";
+
+                    float nameWidth = _nameWidthField != null
+                        ? Mathf.Max(1f, Mathf.Min((float)_nameWidthField.GetValue(message), rowRect.width))
+                        : rowRect.width;
+
+                    float lineHeight = rowRect.height * 0.5f;
+                    if (lineHeight < 1f) lineHeight = 1f;
+
+                    GameFont prevFont = Text.Font;
+                    TextAnchor prevAnchor = Text.Anchor;
+                    Text.Anchor = TextAnchor.UpperLeft;
+
+                    Widgets.Label(new Rect(rowRect.x, rowRect.y, nameWidth, lineHeight), line1);
+                    Widgets.Label(new Rect(rowRect.x, rowRect.y + lineHeight, nameWidth, lineHeight), line2);
+
+                    Text.Anchor = prevAnchor;
+                    Text.Font = prevFont;
+
+                    return false; // skip RimTalk's own horizontal participant drawing
+                }
+
+                // ===== HORIZONTAL [A -> B] =====
+                // Outer brackets = speaker identity color; arrow stays white; names keep our colored labels
+                // and remain clickable (jump to pawn) via UIUtil.DrawClickablePawnName (reflection, safe fallback).
+                float leftBW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(message) : 0f;
+                float speakerW = _speakerWidthField != null ? (float)_speakerWidthField.GetValue(message) : 0f;
+                float dirW = _directionWidthField != null ? (float)_directionWidthField.GetValue(message) : 0f;
+                float targetW = _targetWidthField != null ? (float)_targetWidthField.GetValue(message) : 0f;
+                float rightBW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(message) : 0f;
+
+                GameFont hPrevFont = Text.Font;
+                TextAnchor hPrevAnchor = Text.Anchor;
                 Text.Anchor = TextAnchor.UpperLeft;
 
-                Widgets.Label(new Rect(rowRect.x, rowRect.y, nameWidth, lineHeight), line1);
-                Widgets.Label(new Rect(rowRect.x, rowRect.y + lineHeight, nameWidth, lineHeight), line2);
+                float x = rowRect.x;
+                Color prevGuiColor = GUI.color;
 
-                Text.Anchor = prevAnchor;
-                Text.Font = prevFont;
+                GUI.color = speakerColor;
+                Widgets.Label(new Rect(x, rowRect.y, leftBW, rowRect.height), "[");
+                x += leftBW;
 
-                return false; // skip RimTalk's own horizontal participant drawing
+                GUI.color = Color.white;
+                DrawName(new Rect(x, rowRect.y, speakerW, rowRect.height), speakerLabel, speakerPawn);
+                x += speakerW;
+
+                GUI.color = Color.white;
+                Widgets.Label(new Rect(x, rowRect.y, dirW, rowRect.height), " -> ");
+                x += dirW;
+
+                GUI.color = Color.white;
+                DrawName(new Rect(x, rowRect.y, targetW, rowRect.height), targetLabel, targetPawn);
+                x += targetW;
+
+                GUI.color = speakerColor;
+                Widgets.Label(new Rect(x, rowRect.y, rightBW, rowRect.height), "]");
+
+                GUI.color = prevGuiColor;
+                Text.Anchor = hPrevAnchor;
+                Text.Font = hPrevFont;
+
+                return false; // skip RimTalk's native horizontal drawing (we re-colored it)
             }
             catch
             {
