@@ -298,7 +298,7 @@ public bool showDirectionalArrow = true;
         public static Pawn CurrentProcessingPawn = null;
         public static Pawn CurrentRecipientPawn = null;
         public static Harmony harmony;
-        public static string VersionString = "1.0.12";
+        public static string VersionString = "1.2.03";
 
         public static bool IsDrawingBubble = false;
         public static bool IsDrawingChatLog = false;
@@ -2572,10 +2572,11 @@ else
 
                 if (vertical)
                 {
-                    // line1: [A] -> speaker identity brackets; line2: -> [B] -> arrow white, B brackets = B identity
+                    // line1: [A] -> speaker identity brackets; line2: -> [B] -> arrow white,
+                    // B brackets = B identity when B has a Pawn, else default white (e.g. tamed animals).
                     string line1 = $"<color=#{speakerHex}>[</color>{speakerLabel}<color=#{speakerHex}>]</color>";
 
-                    Color targetColor = targetPawn != null ? PawnNameColorUtility.PawnNameColorOf(targetPawn) : speakerColor;
+                    Color targetColor = targetPawn != null ? PawnNameColorUtility.PawnNameColorOf(targetPawn) : Color.white;
                     string targetHex = ColorUtility.ToHtmlStringRGB(targetColor);
                     string line2 = $"<color=#FFFFFF>-></color> <color=#{targetHex}>[</color>{targetLabel}<color=#{targetHex}>]</color>";
 
