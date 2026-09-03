@@ -2343,7 +2343,23 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                                         {
                                             SetStringFieldIfChanged(_speakerLabelField, msg, coloredSpeaker);
                                             SetStringFieldIfChanged(_targetLabelField, msg, coloredTarget);
-                                            // RimTalk 1.2.2+: unless OverlayShowTargetName is ON, its cache sets TargetName=null so                                             // DrawParticipants would SKIP the arrow/target. Force TargetName + DirectionWidth back so                                             // [A -> B] renders natively with our colored labels.                                             if (_targetNameField != null)                                                 SetStringFieldIfChanged(_targetNameField, msg, cleanRecipientName);                                             if (_directionWidthField != null)                                                 SetFloatFieldIfChanged(_directionWidthField, msg, Text.CalcSize(" -> ").x);
+                                            // RimTalk 1.2.2+: unless OverlayShowTargetName is ON, its cache sets TargetName=null so
+                                            // DrawParticipants would SKIP the arrow/target. Force TargetName + DirectionWidth back so
+                                            // [A -> B] renders natively with our colored labels.
+                                            if (_targetNameField != null) SetStringFieldIfChanged(_targetNameField, msg, cleanRecipientName);
+                                            if (_directionWidthField != null) SetFloatFieldIfChanged(_directionWidthField, msg, Text.CalcSize(" -> ").x);
+                                            // RimTalk also leaves TargetPawnInstance=null when OverlayShowTargetName is OFF, which
+                                            // makes the target name non-clickable. Restore our resolved recipient Pawn so the
+                                            // target is clickable (jump to pawn) just like the speaker.
+                                            if (_targetPawnInstField != null && recipientPawn != null)
+                                            {
+                                                try
+                                                {
+                                                    if (_targetPawnInstField.GetValue(msg) as Pawn != recipientPawn)
+                                                        _targetPawnInstField.SetValue(msg, recipientPawn);
+                                                }
+                                                catch { }
+                                            }
                                         }
 
                                         // Measure segment widths under the same font RimTalk will render with.
@@ -2603,11 +2619,20 @@ else
                 // ===== HORIZONTAL [A -> B] =====
                 // Outer brackets = speaker identity color; arrow stays white; names keep our colored labels
                 // and remain clickable (jump to pawn) via UIUtil.DrawClickablePawnName (reflection, safe fallback).
+                // NOTE: when RimTalk's "show target name" is OFF, its cache zeroes DirectionWidth/TargetWidth
+                // and sets TargetPawnInstance=null. We already restored TargetName/TargetLabel/DirectionWidth/
+                // TargetWidth/TargetPawnInstance in the DrawMessageLog prefix, but guard against a stale/zero
+                // cache anyway by re-measuring any missing width so the arrow can never visually vanish.
                 float leftBW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(message) : 0f;
+                if (leftBW <= 0f) leftBW = Text.CalcSize("[").x;
                 float speakerW = _speakerWidthField != null ? (float)_speakerWidthField.GetValue(message) : 0f;
+                if (speakerW <= 0f && !string.IsNullOrEmpty(speakerLabel)) speakerW = Text.CalcSize(speakerLabel).x;
                 float dirW = _directionWidthField != null ? (float)_directionWidthField.GetValue(message) : 0f;
+                if (dirW <= 0f) dirW = Text.CalcSize(" -> ").x;
                 float targetW = _targetWidthField != null ? (float)_targetWidthField.GetValue(message) : 0f;
+                if (targetW <= 0f && !string.IsNullOrEmpty(targetLabel)) targetW = Text.CalcSize(targetLabel).x;
                 float rightBW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(message) : 0f;
+                if (rightBW <= 0f) rightBW = Text.CalcSize("]").x;
 
                 GameFont hPrevFont = Text.Font;
                 TextAnchor hPrevAnchor = Text.Anchor;
