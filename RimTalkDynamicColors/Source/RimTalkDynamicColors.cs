@@ -300,6 +300,11 @@ public bool showDirectionalArrow = true;
         public static Harmony harmony;
         public static string VersionString = "1.2.03";
 
+        // ===== 版本事件记录 (仅源码记录，不参与编译/部署/git) =====
+        // 2026-09-04: v1.2.03 成功上传 Steam 创意工坊
+        //   事件: 修复横向 [A->B] 在 RimTalk 关闭"显示目标名称"时箭头消失/目标名不可点击
+        // ==============================================================
+
         public static bool IsDrawingBubble = false;
         public static bool IsDrawingChatLog = false;
         public static int lastBubbleFrame = -1;
@@ -403,11 +408,31 @@ public bool showDirectionalArrow = true;
                 Type customDialogueType = AccessTools.TypeByName("RimTalk.Service.CustomDialogueService");
                 if (customDialogueType != null)
                 {
-                    MethodInfo executeDialogueMethod = AccessTools.Method(customDialogueType, "ExecuteDialogue");
-                    if (executeDialogueMethod != null)
+                    // Player-typed messages flow through CustomDialogueService.ExecuteDialogue. RimTalk exposes
+                    // SEVERAL overloads (e.g. the 4-arg forwarding wrapper and the 5-arg core method that accepts
+                    // imageBase64). AccessTools.Method(type, name) without parameter types throws
+                    // AmbiguousMatchException on overloads, silently killing the whole registration. Patch EVERY
+                    // ExecuteDialogue overload instead so player messages are recorded regardless of which one runs.
+                    var executeDialogueMethods = AccessTools.GetDeclaredMethods(customDialogueType)
+                        .Where(m => m.Name == "ExecuteDialogue");
+                    if (executeDialogueMethods.Any())
                     {
-                        harmony.Patch(executeDialogueMethod,
-                            postfix: new HarmonyMethod(typeof(Patch_CustomDialogueService_ExecuteDialogue), nameof(Patch_CustomDialogueService_ExecuteDialogue.Postfix)));
+                        foreach (var executeDialogueMethod in executeDialogueMethods)
+                        {
+                            harmony.Patch(executeDialogueMethod,
+                                postfix: new HarmonyMethod(typeof(Patch_CustomDialogueService_ExecuteDialogue), nameof(Patch_CustomDialogueService_ExecuteDialogue.Postfix)));
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: explicitly target the 5-arg core overload (Pawn, Pawn, string, bool, string).
+                        MethodInfo executeDialogueCore = AccessTools.Method(customDialogueType, "ExecuteDialogue",
+                            new Type[] { typeof(Pawn), typeof(Pawn), typeof(string), typeof(bool), typeof(string) });
+                        if (executeDialogueCore != null)
+                        {
+                            harmony.Patch(executeDialogueCore,
+                                postfix: new HarmonyMethod(typeof(Patch_CustomDialogueService_ExecuteDialogue), nameof(Patch_CustomDialogueService_ExecuteDialogue.Postfix)));
+                        }
                     }
                 }
             }
@@ -2738,6 +2763,11 @@ else
     public static class Patch_CustomDialogueService_ExecuteDialogue
     {
         private static MethodInfo _methodGetPlayer;
+        // Dedup guard: RimTalk's 4-arg ExecuteDialogue overload forwards to the 5-arg core method, so both
+        // postfixes fire for one player message. Remember the last processed (initiator, message, recipient)
+        // for the current frame and skip the duplicate — prevents the same message entering SessionHistory twice.
+        private static string _lastDedupKey;
+        private static int _lastDedupFrame = -1;
 
         public static void Postfix(Pawn initiator, Pawn recipient, string message)
         {
@@ -2755,6 +2785,13 @@ else
 
                 Pawn playerPawn = _methodGetPlayer?.Invoke(null, null) as Pawn;
                 if (playerPawn != initiator) return;
+
+                string recipientKey = recipient == null ? "0" : recipient.GetUniqueLoadID();
+                string dedupKey = initiator.GetUniqueLoadID() + "|" + recipientKey + "|" + message;
+                int frame = Time.frameCount;
+                if (_lastDedupKey == dedupKey && _lastDedupFrame == frame) return;
+                _lastDedupKey = dedupKey;
+                _lastDedupFrame = frame;
 
                 string pawnName = initiator.LabelShort ?? "Player";
                 string recipientName = recipient?.LabelShort;
