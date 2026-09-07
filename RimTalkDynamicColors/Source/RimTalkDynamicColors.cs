@@ -92,6 +92,7 @@ public bool showDirectionalArrow = true;
         public bool enableChatColoring = true;
         public bool enableKeywordColoring = true;
         public bool enableBubblesSync = true;
+        public bool enableNativeBubbleSupport = true;
         public bool autoExportHistory = false;
         public string customExportPath = "";
 
@@ -257,6 +258,7 @@ public bool showDirectionalArrow = true;
             Scribe_Values.Look(ref enableChatColoring, "enableChatColoring", true);
             Scribe_Values.Look(ref enableKeywordColoring, "enableKeywordColoring", true);
             Scribe_Values.Look(ref enableBubblesSync, "enableBubblesSync", true);
+            Scribe_Values.Look(ref enableNativeBubbleSupport, "enableNativeBubbleSupport", true);
             Scribe_Values.Look(ref autoExportHistory, "autoExportHistory", false);
             Scribe_Values.Look(ref customExportPath, "customExportPath", "");
             Scribe_Values.Look(ref historyWindowOpacity, "historyWindowOpacity", 0.9f);
@@ -433,6 +435,19 @@ public bool showDirectionalArrow = true;
                             harmony.Patch(executeDialogueCore,
                                 postfix: new HarmonyMethod(typeof(Patch_CustomDialogueService_ExecuteDialogue), nameof(Patch_CustomDialogueService_ExecuteDialogue.Postfix)));
                         }
+                    }
+                }
+
+                // RimTalk v1.2.6+ native speech bubbles: colorize bubble text before drawing so the
+                // "原生气泡支持" toggle applies to RimTalk's built-in bubbles (not just Interaction Bubbles).
+                Type bubbleDrawerType = AccessTools.TypeByName("RimTalk.UI.SpeechBubbleDrawer");
+                if (bubbleDrawerType != null)
+                {
+                    MethodInfo drawBubblesMethod = AccessTools.Method(bubbleDrawerType, "DrawBubbles");
+                    if (drawBubblesMethod != null)
+                    {
+                        harmony.Patch(drawBubblesMethod,
+                            prefix: new HarmonyMethod(typeof(Patch_RimTalkSpeechBubbleDrawer), nameof(Patch_RimTalkSpeechBubbleDrawer.Prefix)));
                     }
                 }
             }
@@ -1181,6 +1196,19 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
             Text.Font = GameFont.Medium;
             listing.Label("RTDC_SettingsTitle".Translate() + " v" + VersionString);
             Text.Font = GameFont.Small;
+            listing.GapLine(6f);
+
+            // ===== [原生气泡支持] =====
+            // 默认开启：自动为 RimTalk 原生对话气泡（v1.2.6+ 自带）应用染色，玩家无需关心
+            // 使用的是旧版 Interaction Bubbles 还是 RimTalk 原生气泡。
+            Rect nativeBubbleRow = listing.GetRect(28f);
+            Widgets.CheckboxLabeled(new Rect(nativeBubbleRow.x, nativeBubbleRow.y, nativeBubbleRow.width - 40f, 28f),
+                "RTDC_EnableNativeBubbleSupport".Translate(), ref settings.enableNativeBubbleSupport);
+            TooltipHandler.TipRegion(new Rect(nativeBubbleRow.x, nativeBubbleRow.y, nativeBubbleRow.width - 40f, 28f),
+                "RTDC_EnableNativeBubbleSupportDesc".Translate());
+            if (Widgets.ButtonText(new Rect(nativeBubbleRow.xMax - 30f, nativeBubbleRow.y, 30f, 24f), "?"))
+                Find.WindowStack.Add(new Dialog_MessageBox("RTDC_EnableNativeBubbleSupportDesc".Translate(), "OK".Translate()));
+            listing.Gap(4f);
             listing.GapLine(6f);
 
             listing.Label("<b>" + "RTDC_BasicSettings".Translate() + " / " + "RTDC_HistorySettings".Translate() + "</b>");
@@ -2695,6 +2723,91 @@ else
             {
                 return true;
             }
+        }
+    }
+
+    // ===== RIMTALK NATIVE SPEECH BUBBLES (v1.2.6+) =====
+    // RimTalk now ships its own SpeechBubbleDrawer (drawn via a MapInterfaceOnGUI_BeforeMainTabs postfix).
+    // Its bubbles are plain text (bubble.WrappedText / bubble.Text are public fields). This Prefix runs
+    // before SpeechBubbleDrawer.DrawBubbles() and colorizes every active bubble's WrappedText so our
+    // "原生气泡支持" toggle covers RimTalk's native bubbles exactly like the old Interaction Bubbles path.
+    // Performance: only a handful of bubbles are ever active (1-3 per pawn), ColorizeString has internal
+    // caches, and already-colored WrappedText is skipped via the same guard used by the overlay.
+    public static class Patch_RimTalkSpeechBubbleDrawer
+    {
+        private static FieldInfo _activeBubblesField;
+        private static FieldInfo _wrappedTextField;
+        private static FieldInfo _pawnField;
+        private static FieldInfo _isAnnouncementField;
+
+        public static void Prefix()
+        {
+            if (DynamicColorMod.settings == null ||
+                !DynamicColorMod.settings.isGlobalEnabled ||
+                !DynamicColorMod.settings.enableNativeBubbleSupport ||
+                !DynamicColorMod.settings.enableBubblesSync)
+            {
+                return;
+            }
+
+            try
+            {
+                if (_activeBubblesField == null)
+                    _activeBubblesField = AccessTools.Field(typeof(SpeechBubbleDrawer), "ActiveBubbles");
+                if (_activeBubblesField == null) return;
+
+                var activeBubbles = _activeBubblesField.GetValue(null) as System.Collections.IList;
+                if (activeBubbles == null || activeBubbles.Count == 0) return;
+
+                for (int i = 0; i < activeBubbles.Count; i++)
+                {
+                    object bubble = activeBubbles[i];
+                    if (bubble == null) continue;
+
+                    if (_wrappedTextField == null)
+                        _wrappedTextField = AccessTools.Field(bubble.GetType(), "WrappedText");
+                    if (_pawnField == null)
+                        _pawnField = AccessTools.Field(bubble.GetType(), "Pawn");
+                    if (_wrappedTextField == null) return;
+
+                    string wrapped = _wrappedTextField.GetValue(bubble) as string;
+                    if (string.IsNullOrEmpty(wrapped)) continue;
+
+                    // Already colored on a previous frame (or generated by RimTalk with rich tags) -> skip.
+                    if (wrapped.Contains("<color=") || wrapped.Contains("<b>")) continue;
+
+                    Pawn pawn = _pawnField?.GetValue(bubble) as Pawn;
+
+                    // Announcements keep their own tinted styling (name/type coloring not applied).
+                    bool isAnnouncement = false;
+                    if (_isAnnouncementField == null)
+                        _isAnnouncementField = AccessTools.Field(bubble.GetType(), "IsAnnouncement");
+                    if (_isAnnouncementField != null)
+                    {
+                        try { isAnnouncement = (bool)_isAnnouncementField.GetValue(bubble); } catch { }
+                    }
+                    if (isAnnouncement) continue;
+
+                    // Feed the bubble's pawn as the colorization context (same role IsDrawingBubble plays
+                    // for Interaction Bubbles) so rainbow/self-talk/keyword rules resolve against the speaker.
+                    Pawn prevPawn = DynamicColorMod.CurrentProcessingPawn;
+                    DynamicColorMod.CurrentProcessingPawn = pawn;
+                    string colored;
+                    try
+                    {
+                        colored = DynamicColorMod.ColorizeString(wrapped);
+                    }
+                    finally
+                    {
+                        DynamicColorMod.CurrentProcessingPawn = prevPawn;
+                    }
+                    if (colored != wrapped)
+                    {
+                        _wrappedTextField.SetValue(bubble, colored);
+                    }
+                }
+            }
+            catch { }
         }
     }
     public static class Patch_TalkService_CreateInteraction

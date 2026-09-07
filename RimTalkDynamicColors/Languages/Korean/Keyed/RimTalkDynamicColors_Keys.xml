@@ -2,6 +2,8 @@
 <LanguageData>
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
+	<RTDC_EnableNativeBubbleSupport>네이티브 말풍선 지원</RTDC_EnableNativeBubbleSupport>
+	<RTDC_EnableNativeBubbleSupportDesc>켜면 RimTalk 기본 네이티브 말풍선(v1.2.6+)에도 색상이 자동 적용됩니다. 기존 Interaction Bubbles와 구분할 필요가 없습니다. 기본적으로 켜져 있습니다.</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>DynamicColors 채팅 로그</RTDC_HistoryTab>
 	<RTDC_ChatHistoryViewer>채팅 기록 뷰어</RTDC_ChatHistoryViewer>

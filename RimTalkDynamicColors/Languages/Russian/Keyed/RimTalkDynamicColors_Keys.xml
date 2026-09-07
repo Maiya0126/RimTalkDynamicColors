@@ -2,6 +2,8 @@
 <LanguageData>
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
+	<RTDC_EnableNativeBubbleSupport>Поддержка встроенных облачков</RTDC_EnableNativeBubbleSupport>
+	<RTDC_EnableNativeBubbleSupportDesc>При включении раскраска автоматически применяется и к встроенным облачкам RimTalk (v1.2.6+), не нужно отличать их от старых Interaction Bubbles. Включено по умолчанию.</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>Журнал DynamicColors</RTDC_HistoryTab>
 	<RTDC_ChatHistoryViewer>Просмотр истории чата</RTDC_ChatHistoryViewer>
