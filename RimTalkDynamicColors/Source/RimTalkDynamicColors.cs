@@ -2425,18 +2425,27 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                                         if (_targetWidthField != null)
                                             SetFloatFieldIfChanged(_targetWidthField, msg, targetWidthV);
 
-                                        // RimTalk's dialogue rect starts at rowRect.x + NameWidth + TextPadding, so
-                                        // NameWidth MUST be >= left bracket + speaker(+badge) + direction + target
-                                        // + right bracket. Take the max with RimTalk's cached value (respects aligned
-                                        // name-column mode and never shrinks the column).
-                                        float leftBracketW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(msg) : 0f;
-                                        float directionW = _directionWidthField != null ? (float)_directionWidthField.GetValue(msg) : 0f;
-                                        float rightBracketW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(msg) : 0f;
-                                        float segmentTotal = leftBracketW + speakerWidthV + badgeWidthV + directionW + targetWidthV + rightBracketW;
-                                        if (_nameWidthField != null)
+                                        // VERTICAL layout note: the two-line name column is drawn by OUR
+                                        // DrawParticipants prefix and its NameWidth was already computed per-line
+                                        // (widest of "[A]" / "-> [B]") above. Applying the HORIZONTAL single-line
+                                        // total here would inflate NameWidth far beyond the actual need, shrinking
+                                        // the dialogue column until RimTalk's FitDialogueToHeight TRUNCATES the
+                                        // newest dialogue (player-visible symptom: "最后一行不显示").
+                                        if (!DynamicColorMod.settings.showDirectionalArrowVertical)
                                         {
-                                            float cachedNameWidth = (float)_nameWidthField.GetValue(msg);
-                                            SetFloatFieldIfChanged(_nameWidthField, msg, Mathf.Max(cachedNameWidth, segmentTotal));
+                                            // RimTalk's dialogue rect starts at rowRect.x + NameWidth + TextPadding, so
+                                            // NameWidth MUST be >= left bracket + speaker(+badge) + direction + target
+                                            // + right bracket. Take the max with RimTalk's cached value (respects aligned
+                                            // name-column mode and never shrinks the column).
+                                            float leftBracketW = _leftBracketWidthField != null ? (float)_leftBracketWidthField.GetValue(msg) : 0f;
+                                            float directionW = _directionWidthField != null ? (float)_directionWidthField.GetValue(msg) : 0f;
+                                            float rightBracketW = _rightBracketWidthField != null ? (float)_rightBracketWidthField.GetValue(msg) : 0f;
+                                            float segmentTotal = leftBracketW + speakerWidthV + badgeWidthV + directionW + targetWidthV + rightBracketW;
+                                            if (_nameWidthField != null)
+                                            {
+                                                float cachedNameWidth = (float)_nameWidthField.GetValue(msg);
+                                                SetFloatFieldIfChanged(_nameWidthField, msg, Mathf.Max(cachedNameWidth, segmentTotal));
+                                            }
                                         }
                                     }
                                     else
