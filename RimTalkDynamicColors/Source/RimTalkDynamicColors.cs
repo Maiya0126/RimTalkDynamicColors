@@ -454,7 +454,11 @@ public bool showDirectionalArrow = true;
             catch (Exception) { }
         }
 
-        public static void ClearCaches() => _nameToPawnCache.Clear();
+        public static void ClearCaches()
+        {
+            _nameToPawnCache.Clear();
+            _colorizeMemo.Clear();
+        }
 
         public static void ClearSessionHistory()
         {
@@ -653,6 +657,21 @@ public bool showDirectionalArrow = true;
         }
 
         public static string ColorizeString(string input) => ColorizeStringInternal(input, false);
+
+        // Bounded memo for the overlay dialogue path: the same plain text is re-colored every GUI frame
+        // (the cache line persists between frames), so cache input->output to avoid re-running the
+        // keyword regex + bracket walk per frame. Cleared on settings rebuild (RebuildCache).
+        private static readonly Dictionary<string, string> _colorizeMemo = new Dictionary<string, string>();
+
+        public static string ColorizeStringCached(string plainInput)
+        {
+            if (string.IsNullOrEmpty(plainInput)) return plainInput;
+            if (_colorizeMemo.TryGetValue(plainInput, out string cached)) return cached;
+            string output = ColorizeString(plainInput);
+            if (_colorizeMemo.Count > 96) _colorizeMemo.Clear();
+            _colorizeMemo[plainInput] = output;
+            return output;
+        }
 
         public static string ColorizeStringInternal(string input, bool forbidEffects)
         {
@@ -2315,15 +2334,17 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             }
 
                             // Colorize dialogue directly in the cache!
-                            // GUARD: RimTalk 1.6+ already runs our ColorizeString when building the cache
-                            // (its BuildFinalRichText calls RimTalkDynamicColors.DynamicColorMod.ColorizeString),
-                            // so the cached Dialogue may already contain rich tags. Re-coloring it would
-                            // produce nested <color> tags. Skip when tags are already present.
+                            // RimTalk v1.2.14 REMOVED its BuildFinalRichText hook (which used to pre-call our
+                            // ColorizeString during cache build), and the raw response can now arrive with
+                            // PARTIAL rich-text tags (e.g. AI-echoed <color> around （） from prompt-history
+                            // feedback). The old "skip if tagged" guard left those rows half-colored
+                            // (symptom: only （） tinted, 「」/kaomoji plain). Strip any existing tags first,
+                            // then apply our full canonical coloring — idempotent, memo-cached for perf.
                             string colorizedDialogue = dialogue;
-                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue)
-                                && !dialogue.Contains("<color=") && !dialogue.Contains("<b>"))
+                            if (DynamicColorMod.settings.enableChatColoring && !string.IsNullOrEmpty(dialogue))
                             {
-                                colorizedDialogue = DynamicColorMod.ColorizeString(dialogue);
+                                string plainDialogue = dialogue.IndexOf('<') >= 0 ? RichTagRegex.Replace(dialogue, "") : dialogue;
+                                colorizedDialogue = DynamicColorMod.ColorizeStringCached(plainDialogue);
                             }
                             if (colorizedDialogue != dialogue)
                             {
