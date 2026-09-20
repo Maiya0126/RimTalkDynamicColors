@@ -305,6 +305,26 @@ public bool showDirectionalArrow = true;
         // ===== 版本事件记录 (仅源码记录，不参与编译/部署/git) =====
         // 2026-09-04: v1.2.03 成功上传 Steam 创意工坊
         //   事件: 修复横向 [A->B] 在 RimTalk 关闭"显示目标名称"时箭头消失/目标名不可点击
+        //
+        // 2026-09-17: [决策记录] 经评估，决定不新增 AI 内容识别（维持现状）
+        //   背景: 玩家反馈的三个边缘问题——
+        //     1) 单字名误染（如访客叫"的"，全文"的"字都被染色）
+        //     2) 无括号表情无法染色（如 ＼(^o^)／、>_< 等括号外/无括号形态）
+        //     3) 指向性对话偶尔不够准（依赖"上一行说话者"猜测兜底）
+        //   决策理由:
+        //     - RimTalk 10 天内 v1.2.6→v1.2.14，内部 API 频繁变动（BuildFinalRichText 被移除即是一例），
+        //       此时再反射其 API 配置做 AI 辅助会持续产生兼容负担
+        //     - AI 识别需消耗玩家自己的 token/增加延迟/新增失败模式，与本模组
+        //       "无额外 AI 开销的染色增强"定位相悖
+        //   未来可选的轻量方案清单（仅当多名玩家反复反馈且本地方案确实不足时再考虑）:
+        //     a) 单字/高频名只在称呼位染色（本地确定性，几十行代码；手动添加的名字条目保持全文染色）
+        //     b) 无括号表情扫描器（复用 IsLikelyKaomoji 的强符号表，扫描括号外表情簇，长度≤12、
+        //        以 CJK/标点为边界；另可在工坊简介建议玩家在 RimTalk 指令中加
+        //        "颜文字一律用全角括号包裹"，零代码缓解）
+        //     c) 自行解析 ApiLog.Response 的原始 JSONL（每轮 name/target/act），
+        //        使指向性对话与 AI 判定完全对齐（确定性、零成本），替代"上一行猜测"兜底
+        //     d) AI 辅助仅作最后兜底且默认关闭（反射 RimTalk 配置、仅 OpenAI 兼容系+Gemini、
+        //        结果按文本缓存、失败静默回落本地规则）——需等 RimTalk API 稳定后再评估
         // ==============================================================
 
         public static bool IsDrawingBubble = false;
@@ -2552,6 +2572,40 @@ else
                                 float calculatedLineHeight = Mathf.Max(textHeight, nameHeight) + 2f;
 
                                 SetFloatFieldIfChanged(_lineHeightField, msg, calculatedLineHeight);
+                            }
+
+                            // ===== [SYNC LINE HEIGHT WITH FINAL NAME WIDTH — NEW-STYLE] =====
+                            // ROOT CAUSE of "最后一行显示不出来 / 不能自动换行":
+                            // RimTalk measured LineHeight during cache build using ITS OWN NameWidth
+                            // (without our badge width, without our forced DirectionWidth, without our
+                            // vertical two-line column). Our prefix widens NameWidth AFTER that build,
+                            // so at draw time the dialogue rect is NARROWER than the measured width ->
+                            // the text wraps into MORE lines than LineHeight accounts for -> the extra
+                            // lines overflow rowHeight and get clipped.
+                            // Fix: re-measure the (colorized) dialogue with the FINAL name width, exactly
+                            // like RimTalk's CalcRichTextHeight (CurFontStyle honors rich text), and keep
+                            // the name-column height as a floor (two lines in vertical mode).
+                            if (_speakerLabelField != null && _lineHeightField != null && _nameWidthField != null)
+                            {
+                                float finalNameWidth = (float)_nameWidthField.GetValue(msg);
+                                // RimTalk draws rows inside inRect.ContractedBy(5f): row width = inRect.width - 10.
+                                float rowWidth = Mathf.Max(60f, inRect.width - 10f);
+                                float newDialogueWidth = Mathf.Max(20f, rowWidth - finalNameWidth - 5f);
+
+                                // Measure the text that will actually be drawn (colorized; rich-text aware,
+                                // same as RimTalk's CalcRichTextHeight). Tags add zero layout width.
+                                string textToMeasure = string.IsNullOrEmpty(colorizedDialogue) ? (dialogue ?? "") : colorizedDialogue;
+                                float dialogueHeightNow = Text.CurFontStyle.CalcHeight(new GUIContent(textToMeasure), newDialogueWidth);
+
+                                bool twoLineName = DynamicColorMod.settings.showDirectionalArrow
+                                                   && DynamicColorMod.settings.showDirectionalArrowVertical
+                                                   && recipientPawn != null;
+                                float nameColumnHeight = twoLineName
+                                    ? Text.LineHeightOf(GameFont.Small) * 2f + 2f
+                                    : Text.CalcSize("[" + (cleanRawName ?? "") + "]").y;
+
+                                float syncedLineHeight = Mathf.Max(dialogueHeightNow, nameColumnHeight) + 2f;
+                                SetFloatFieldIfChanged(_lineHeightField, msg, syncedLineHeight);
                             }
                         }
 
