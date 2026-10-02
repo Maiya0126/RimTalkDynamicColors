@@ -1168,10 +1168,16 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                     Rect avatarRect = new Rect(lineRect.x, lineRect.y, 24f, 24f);
                     try
                     {
-                        RenderTexture portrait = PortraitsCache.Get(item.SpeakerPawn, new Vector2(24f, 24f), Rot4.South);
+                        // Render at 2x resolution so the cropped upper-body close-up still has enough
+                        // pixels to look sharp inside the 24px avatar frame.
+                        RenderTexture portrait = PortraitsCache.Get(item.SpeakerPawn, new Vector2(48f, 48f), Rot4.South);
                         if (portrait != null)
                         {
-                            GUI.DrawTexture(avatarRect, portrait);
+                            // Upper-body close-up: sample only the head/torso band of the full-body
+                            // portrait instead of squeezing the whole body into the tiny frame.
+                            // TexCoords are normalized (y measured from the texture BOTTOM).
+                            Rect upperBodyCoords = new Rect(0f, 0.30f, 1f, 0.60f);
+                            GUI.DrawTextureWithTexCoords(avatarRect, portrait, upperBodyCoords);
                         }
                     }
                     catch
