@@ -554,19 +554,32 @@ public bool showDirectionalArrow = true;
             return Color.white;
         }
 
-        public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue, Pawn recipient = null, string recipientName = null, Guid talkId = default)
+        public static void RecordToSessionHistory(Pawn pawn, string pawnName, string rawDialogue, Pawn recipient = null, string recipientName = null, Guid talkId = default, bool hasKnownTarget = true)
         {
             CurrentProcessingPawn = pawn;
 
             // ===== ABSOLUTE GUARDRAIL: the recipient can NEVER be the speaker themselves! =====
             // This mathematically prevents [A -> A] chains from ever entering SessionHistory.
+            // A self-pointing recipient (e.g. a multi-turn monologue whose ParentTalkId links to the
+            // speaker's own previous turn) IS a monologue: disable the chronological fallback too.
             if (recipient != null && (recipient == pawn || recipientName == pawnName))
             {
                 recipient = null;
                 recipientName = null;
+                hasKnownTarget = false;
             }
 
-            if (recipient == null && SessionHistory.Count > 0)
+            // Chronological fallback (previous speaker = recipient). ONLY allowed when the AI actually
+            // declared a target for this turn. Monologues (self-talk) and player announcements have NO
+            // target — the old unconditional fallback here was the root cause of "新的自言自语指向上一人"
+            // (guard cleared the self-pointing recipient, then the fallback re-filled it with the
+            // previous speaker).
+            if (!hasKnownTarget)
+            {
+                recipient = null;
+                recipientName = null;
+            }
+            else if (recipient == null && SessionHistory.Count > 0)
             {
                 var prevItem = SessionHistory[SessionHistory.Count - 1];
                 if (prevItem != null && prevItem.SpeakerPawn != pawn)
@@ -2068,6 +2081,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static FieldInfo _lineHeightField;
         private static FieldInfo _isCacheDirtyField;
         private static MethodInfo _recalcMethod;
+        private static PropertyInfo _propMessageId;
         private static Type _rimTalkSettingsType;
         private static Type _settingsModType;
         private static MethodInfo _getModMethod;
@@ -2279,25 +2293,56 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             string dialogue = _dialogueField?.GetValue(msg) as string;
 
                             // Find matched history item from SessionHistory (which has 100% accurate data)
-                            // NOTE: RimTalk already colorizes the cached Dialogue via our ColorizeString, so we
-                            // must strip all rich tags before comparing against the raw OriginalContent.
-                            // RimTalk can also TRUNCATE the newest cached line (FitDialogueToHeight adds a
-                            // trailing "…"), so use bidirectional prefix tolerance (≥20 chars) as a fallback.
+                            // PRIMARY: deterministic TalkId match — the overlay row's ApiLog.Id equals the
+                            // TalkResponse.Id we recorded in SessionHistory (same Guid; RimTalk's ConsumeTalk
+                            // resolves SpokenTick via GetApiLog(talkResponse.Id)). This kills ALL ambiguity
+                            // when several pawns chat simultaneously.
+                            // SECONDARY: text match (exact / prefix-tolerant ≥20 chars) for rows that have
+                            // no TalkId (player messages recorded before Id plumbing, legacy entries).
                             LogItem matchedItem = null;
-                            string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : RichTagRegex.Replace(dialogue, "").Trim();
-                            string cleanedDialogueNoEllipsis = cleanDialogueForMatch.TrimEnd('…', '.');
-                            for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
+                            if (_propMessageId == null) _propMessageId = AccessTools.Property(t, "Id");
+                            if (_propMessageId != null)
                             {
-                                var hist = DynamicColorMod.SessionHistory[h];
-                                if (hist == null || hist.SpeakerPawn != speaker) continue;
-                                bool exact = hist.OriginalContent == cleanDialogueForMatch;
-                                bool prefixTolerant = cleanDialogueForMatch.Length >= 20 &&
-                                    (hist.OriginalContent.StartsWith(cleanedDialogueNoEllipsis) ||
-                                     cleanedDialogueNoEllipsis.StartsWith(hist.OriginalContent));
-                                if (exact || prefixTolerant)
+                                try
                                 {
-                                    matchedItem = hist;
-                                    break;
+                                    Guid messageId = (Guid)_propMessageId.GetValue(msg);
+                                    if (messageId != Guid.Empty)
+                                    {
+                                        for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
+                                        {
+                                            var hist = DynamicColorMod.SessionHistory[h];
+                                            if (hist != null && hist.TalkId == messageId)
+                                            {
+                                                matchedItem = hist;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+                            if (matchedItem == null)
+                            {
+                                // NOTE: RimTalk no longer pre-colorizes the cached Dialogue (v1.2.14+), but our
+                                // own colorization may already be applied on earlier frames, so strip rich tags
+                                // before comparing against the raw OriginalContent. RimTalk can also TRUNCATE
+                                // the newest cached line (FitDialogueToHeight adds a trailing "…"), hence the
+                                // bidirectional prefix tolerance (≥20 chars).
+                                string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : RichTagRegex.Replace(dialogue, "").Trim();
+                                string cleanedDialogueNoEllipsis = cleanDialogueForMatch.TrimEnd('…', '.');
+                                for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
+                                {
+                                    var hist = DynamicColorMod.SessionHistory[h];
+                                    if (hist == null || hist.SpeakerPawn != speaker) continue;
+                                    bool exact = hist.OriginalContent == cleanDialogueForMatch;
+                                    bool prefixTolerant = cleanDialogueForMatch.Length >= 20 &&
+                                        (hist.OriginalContent.StartsWith(cleanedDialogueNoEllipsis) ||
+                                         cleanedDialogueNoEllipsis.StartsWith(hist.OriginalContent));
+                                    if (exact || prefixTolerant)
+                                    {
+                                        matchedItem = hist;
+                                        break;
+                                    }
                                 }
                             }
 
@@ -2307,6 +2352,10 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             // Adopt the matched recipient whenever it has a usable NAME — even when the
                             // recipient has no backing Pawn (the player "超凡智能" style names resolve to
                             // RecipientPawn == null but the name itself is 100% accurate).
+                            // NO chronological guessing anymore: monologues and rows we could not match
+                            // simply draw no arrow (accuracy over coverage — the previous "previous cache
+                            // row's speaker" guess was the root cause of wrong directions whenever several
+                            // pawns talked at once).
                             string cleanRecipientMatched = matchedItem == null ? "" :
                                 string.IsNullOrEmpty(matchedItem.RecipientName) ? "" : RichTagRegex.Replace(matchedItem.RecipientName, "").Trim();
                             if (matchedItem != null &&
@@ -2315,22 +2364,6 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             {
                                 recipientPawn = matchedItem.RecipientPawn;   // may be null (player)
                                 recipientName = matchedItem.RecipientName;
-                            }
-                            else if (i + 1 < list.Count)
-                            {
-                                // LAST RESORT (kept): chronological guess — the previous cache row's
-                                // speaker is the recipient. Only used when we could not resolve a real
-                                // recipient above. Never shows a self-pointing arrow.
-                                var prevMsg = list[i + 1];
-                                if (prevMsg != null)
-                                {
-                                    Pawn prevSpeaker = _pawnInstField?.GetValue(prevMsg) as Pawn;
-                                    if (prevSpeaker != null && prevSpeaker != speaker)
-                                    {
-                                        recipientPawn = prevSpeaker;
-                                        recipientName = prevSpeaker.LabelShort;
-                                    }
-                                }
                             }
 
                             // Clean recipient name as well
@@ -2900,6 +2933,7 @@ else
         private static PropertyInfo _propTalkText;
         private static PropertyInfo _propTalkId;
         private static PropertyInfo _propTargetName;
+        private static PropertyInfo _propTargetPawn;
         private static PropertyInfo _propParentTalkId;
 
         public static void Postfix(Pawn pawn, object talk)
@@ -2914,6 +2948,7 @@ else
                 if (_propTalkText == null) _propTalkText = AccessTools.Property(t, "Text");
                 if (_propTalkId == null) _propTalkId = AccessTools.Property(t, "Id");
                 if (_propTargetName == null) _propTargetName = AccessTools.Property(t, "TargetName");
+                if (_propTargetPawn == null) _propTargetPawn = AccessTools.Property(t, "TargetPawn");
                 if (_propParentTalkId == null) _propParentTalkId = AccessTools.Property(t, "ParentTalkId");
 
                 Guid talkId = Guid.Empty;
@@ -2927,10 +2962,28 @@ else
                 if (string.IsNullOrEmpty(pawnName)) pawnName = pawn.LabelShort;
                 if (string.IsNullOrEmpty(rawDialogue)) return;
 
+                // ===== DIRECTIONAL TARGET RESOLUTION (priority order) =====
+                // 1. TargetPawn  — RimTalk already resolved the AI's "target" name to a Pawn (most accurate)
+                // 2. TargetName  — string match by name (handles the player persona, which has no Pawn)
+                // 3. ParentTalkId— deterministic reply chain (this turn replies to a known previous turn)
+                // Anything else (empty target, or target == speaker = monologue) has NO known target:
+                // hasKnownTarget=false disables the chronological fallback so self-talk NEVER gets
+                // wrongly pointed at the previous speaker.
+                string cleanSpeaker = DynamicColorMod.RichTagRegex.Replace(pawnName, "").Trim();
+                string cleanTarget = string.IsNullOrEmpty(targetName) ? "" : DynamicColorMod.RichTagRegex.Replace(targetName, "").Trim();
+
+                bool hasKnownTarget = false;
                 Pawn recipientPawn = null;
-                if (!string.IsNullOrEmpty(targetName))
+
+                if (!string.IsNullOrEmpty(cleanTarget) && cleanTarget != cleanSpeaker)
                 {
-                    recipientPawn = DynamicColorMod.FindPawnByName(targetName);
+                    hasKnownTarget = true;
+
+                    if (_propTargetPawn != null)
+                        recipientPawn = _propTargetPawn.GetValue(talk) as Pawn;
+
+                    if (recipientPawn == null)
+                        recipientPawn = DynamicColorMod.FindPawnByName(targetName);
                 }
                 else if (_propParentTalkId != null)
                 {
@@ -2945,13 +2998,29 @@ else
                             {
                                 recipientPawn = hist.SpeakerPawn;
                                 targetName = hist.PawnName;
+                                hasKnownTarget = recipientPawn != null || !string.IsNullOrEmpty(targetName);
                                 break;
                             }
                         }
                     }
                 }
+                else
+                {
+                    // Empty target or target == speaker (monologue): explicitly no target.
+                    hasKnownTarget = false;
+                    targetName = null;
+                }
 
-                DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue, recipientPawn, targetName, talkId);
+                // Central self-target check (covers multi-turn monologues whose ParentTalkId chain
+                // resolves back to the speaker itself): a self-recipient IS a monologue.
+                if (recipientPawn == pawn)
+                {
+                    hasKnownTarget = false;
+                    recipientPawn = null;
+                    targetName = null;
+                }
+
+                DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue, recipientPawn, targetName, talkId, hasKnownTarget);
             }
             catch (Exception) { }
         }
@@ -2993,7 +3062,10 @@ else
                 string pawnName = initiator.LabelShort ?? "Player";
                 string recipientName = recipient?.LabelShort;
 
-                DynamicColorMod.RecordToSessionHistory(initiator, pawnName, message, recipient, recipientName);
+                // Player messages have an explicit recipient (direct talk) or none (announcement) —
+                // never let the record-layer guess one chronologically.
+                bool hasKnownTarget = recipient != null || !string.IsNullOrEmpty(recipientName);
+                DynamicColorMod.RecordToSessionHistory(initiator, pawnName, message, recipient, recipientName, default, hasKnownTarget);
             }
             catch (Exception) { }
         }
