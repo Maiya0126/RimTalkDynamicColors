@@ -425,6 +425,15 @@ public bool showDirectionalArrow = true;
                         harmony.Patch(createInteractionMethod,
                             postfix: new HarmonyMethod(typeof(Patch_TalkService_CreateInteraction), nameof(Patch_TalkService_CreateInteraction.Postfix)));
                     }
+
+                    // Consume-time recorder: closes the window where an overlay row is already visible
+                    // (SpokenTick set in ConsumeTalk) but the turn has not been recorded yet.
+                    MethodInfo consumeTalkMethod = AccessTools.Method(talkServiceType, "ConsumeTalk");
+                    if (consumeTalkMethod != null)
+                    {
+                        harmony.Patch(consumeTalkMethod,
+                            postfix: new HarmonyMethod(typeof(Patch_TalkService_ConsumeTalk), nameof(Patch_TalkService_ConsumeTalk.Postfix)));
+                    }
                 }
 
                 Type customDialogueType = AccessTools.TypeByName("RimTalk.Service.CustomDialogueService");
@@ -2082,6 +2091,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static FieldInfo _isCacheDirtyField;
         private static MethodInfo _recalcMethod;
         private static FieldInfo _rawDialogueField;
+        private static bool _diagMatchLogged;
         private static Type _rimTalkSettingsType;
         private static Type _settingsModType;
         private static MethodInfo _getModMethod;
@@ -2309,14 +2319,32 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
 
                             if (!string.IsNullOrEmpty(rawDialogueForMatch))
                             {
-                                for (int pass = 0; pass < 2 && matchedItem == null; pass++)
+                                // pass 0: Raw exact + speaker | pass 1: Raw exact | pass 2: containment
+                                // (RawDialogue ↔ OriginalContent, both ≥20 chars) + speaker | pass 3:
+                                // containment. Containment covers continuation turns that wrap/extend the
+                                // recorded text (leading '。', trailing '？', tag placement variants).
+                                for (int pass = 0; pass < 4 && matchedItem == null; pass++)
                                 {
+                                    bool requireSpeaker = pass == 0 || pass == 2;
                                     for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                                     {
                                         var hist = DynamicColorMod.SessionHistory[h];
                                         if (hist == null) continue;
-                                        if (pass == 0 && hist.SpeakerPawn != speaker) continue;
-                                        if (hist.OriginalContent == rawDialogueForMatch)
+                                        string orig = hist.OriginalContent;
+                                        if (string.IsNullOrEmpty(orig)) continue;
+                                        if (requireSpeaker && hist.SpeakerPawn != speaker) continue;
+
+                                        bool match;
+                                        if (pass < 2)
+                                        {
+                                            match = orig == rawDialogueForMatch;
+                                        }
+                                        else
+                                        {
+                                            match = orig.Length >= 20 && rawDialogueForMatch.Length >= 20 &&
+                                                (rawDialogueForMatch.Contains(orig) || orig.Contains(rawDialogueForMatch));
+                                        }
+                                        if (match)
                                         {
                                             matchedItem = hist;
                                             break;
@@ -2366,6 +2394,21 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             {
                                 recipientPawn = matchedItem.RecipientPawn;   // may be null (player)
                                 recipientName = matchedItem.RecipientName;
+                            }
+
+                            // TEMP DIAG (one-shot): dump match inputs for the newest row to diagnose
+                            // missing arrows. Remove once resolved.
+                            if (i == 0 && !_diagMatchLogged && !string.IsNullOrEmpty(rawDialogueForMatch))
+                            {
+                                _diagMatchLogged = true;
+                                var lastHist = DynamicColorMod.SessionHistory.Count > 0
+                                    ? DynamicColorMod.SessionHistory[DynamicColorMod.SessionHistory.Count - 1]
+                                    : null;
+                                Log.Warning($"[RTDC DIAG] noMatch={matchedItem == null} histCount={DynamicColorMod.SessionHistory.Count} " +
+                                    $"speaker={(speaker == null ? "NULL" : speaker.LabelShort)} " +
+                                    $"rawDia='{(rawDialogueForMatch ?? "").Substring(0, Math.Min(120, rawDialogueForMatch.Length))}' " +
+                                    $"lastOrig='{(lastHist != null ? lastHist.OriginalContent.Substring(0, Math.Min(120, lastHist.OriginalContent.Length)) : "(empty)")}' " +
+                                    $"lastRecip='{(lastHist != null ? (lastHist.RecipientName ?? "(null)") : "-")}'");
                             }
 
                             // Clean recipient name as well
@@ -2937,6 +2980,7 @@ else
         private static PropertyInfo _propTargetName;
         private static PropertyInfo _propTargetPawn;
         private static PropertyInfo _propParentTalkId;
+        private static bool _diagRecordLogged;
 
         public static void Postfix(Pawn pawn, object talk)
         {
@@ -2955,22 +2999,35 @@ else
 
                 Guid talkId = Guid.Empty;
                 if (_propTalkId != null) talkId = (Guid)_propTalkId.GetValue(talk);
-                if (talkId != Guid.Empty && !DynamicColorMod.RecordedTalkIds.Add(talkId)) return;
 
                 string pawnName = _propTalkName?.GetValue(talk) as string ?? pawn.LabelShort;
                 string rawDialogue = _propTalkText?.GetValue(talk) as string ?? "";
                 string targetName = _propTargetName?.GetValue(talk) as string;
+                Pawn targetPawn = _propTargetPawn?.GetValue(talk) as Pawn;
+                Guid parentTalkId = _propParentTalkId != null ? (Guid)_propParentTalkId.GetValue(talk) : Guid.Empty;
 
+                RecordTalkTurn(pawn, pawnName, rawDialogue, targetName, targetPawn, talkId, parentTalkId);
+            }
+            catch (Exception) { }
+        }
+
+        // Shared turn recorder used by BOTH the CreateInteraction postfix and the ConsumeTalk postfix —
+        // whichever fires first records the turn; the other is deduped by talkId. Resolves the
+        // directional target with priority: 1. TargetPawn (RimTalk-resolved) 2. TargetName 3. ParentTalkId
+        // reply chain. Monologues (empty/self target) get hasKnownTarget=false so they NEVER fall back
+        // to the previous speaker.
+        internal static void RecordTalkTurn(Pawn pawn, string pawnName, string rawDialogue, string targetName, Pawn targetPawn, Guid talkId, Guid parentTalkId)
+        {
+            if (pawn == null) return;
+            if (DynamicColorMod.settings == null || !DynamicColorMod.settings.isGlobalEnabled) return;
+
+            try
+            {
+                if (talkId != Guid.Empty && !DynamicColorMod.RecordedTalkIds.Add(talkId)) return;
                 if (string.IsNullOrEmpty(pawnName)) pawnName = pawn.LabelShort;
                 if (string.IsNullOrEmpty(rawDialogue)) return;
 
                 // ===== DIRECTIONAL TARGET RESOLUTION (priority order) =====
-                // 1. TargetPawn  — RimTalk already resolved the AI's "target" name to a Pawn (most accurate)
-                // 2. TargetName  — string match by name (handles the player persona, which has no Pawn)
-                // 3. ParentTalkId— deterministic reply chain (this turn replies to a known previous turn)
-                // Anything else (empty target, or target == speaker = monologue) has NO known target:
-                // hasKnownTarget=false disables the chronological fallback so self-talk NEVER gets
-                // wrongly pointed at the previous speaker.
                 string cleanSpeaker = DynamicColorMod.RichTagRegex.Replace(pawnName, "").Trim();
                 string cleanTarget = string.IsNullOrEmpty(targetName) ? "" : DynamicColorMod.RichTagRegex.Replace(targetName, "").Trim();
 
@@ -2980,29 +3037,22 @@ else
                 if (!string.IsNullOrEmpty(cleanTarget) && cleanTarget != cleanSpeaker)
                 {
                     hasKnownTarget = true;
-
-                    if (_propTargetPawn != null)
-                        recipientPawn = _propTargetPawn.GetValue(talk) as Pawn;
-
+                    recipientPawn = targetPawn;
                     if (recipientPawn == null)
                         recipientPawn = DynamicColorMod.FindPawnByName(targetName);
                 }
-                else if (_propParentTalkId != null)
+                else if (parentTalkId != Guid.Empty)
                 {
-                    Guid parentTalkId = (Guid)_propParentTalkId.GetValue(talk);
-                    if (parentTalkId != Guid.Empty)
+                    // Deterministic reply chain: this turn replies to a known previous turn.
+                    for (int i = DynamicColorMod.SessionHistory.Count - 1; i >= 0; i--)
                     {
-                        // Search SessionHistory backwards to find the speaker of the parent talk
-                        for (int i = DynamicColorMod.SessionHistory.Count - 1; i >= 0; i--)
+                        var hist = DynamicColorMod.SessionHistory[i];
+                        if (hist != null && hist.TalkId == parentTalkId)
                         {
-                            var hist = DynamicColorMod.SessionHistory[i];
-                            if (hist != null && hist.TalkId == parentTalkId)
-                            {
-                                recipientPawn = hist.SpeakerPawn;
-                                targetName = hist.PawnName;
-                                hasKnownTarget = recipientPawn != null || !string.IsNullOrEmpty(targetName);
-                                break;
-                            }
+                            recipientPawn = hist.SpeakerPawn;
+                            targetName = hist.PawnName;
+                            hasKnownTarget = recipientPawn != null || !string.IsNullOrEmpty(targetName);
+                            break;
                         }
                     }
                 }
@@ -3022,7 +3072,67 @@ else
                     targetName = null;
                 }
 
+                // TEMP DIAG (one-shot): dump what the record layer actually saw. Remove once resolved.
+                if (!_diagRecordLogged)
+                {
+                    _diagRecordLogged = true;
+                    Log.Warning($"[RTDC DIAG] record: speaker='{pawnName}' target='{targetName ?? "(null)"}' " +
+                        $"hasKnownTarget={hasKnownTarget} rawDia='{(rawDialogue ?? "").Substring(0, Math.Min(120, (rawDialogue ?? "").Length))}'");
+                }
+
                 DynamicColorMod.RecordToSessionHistory(pawn, pawnName, rawDialogue, recipientPawn, targetName, talkId, hasKnownTarget);
+            }
+            catch (Exception) { }
+        }
+    }
+
+    // ===== CONSUME-TIME RECORDER =====
+    // RimTalk consumes a queued talk (removes it from TalkResponses and sets SpokenTick on its ApiLog)
+    // inside ConsumeTalk — which the game UI can trigger through PlayLog/GetTalk BEFORE DisplayTalk
+    // reaches CreateInteraction for that turn. Without this postfix the overlay row displays while the
+    // turn is still unrecorded (match fails -> no arrow). Recording at consume-time closes that window;
+    // the CreateInteraction-side recording is deduped by talkId.
+    public static class Patch_TalkService_ConsumeTalk
+    {
+        private static PropertyInfo _propStatePawn;
+        private static PropertyInfo _propRespId;
+        private static PropertyInfo _propRespText;
+        private static PropertyInfo _propRespTargetName;
+        private static PropertyInfo _propRespTargetPawn;
+        private static PropertyInfo _propRespParentTalkId;
+
+        public static void Postfix(object pawnState, object __result)
+        {
+            if (DynamicColorMod.settings == null || !DynamicColorMod.settings.isGlobalEnabled) return;
+            if (pawnState == null || __result == null) return;
+
+            try
+            {
+                Type stateType = pawnState.GetType();
+                Type respType = __result.GetType();
+                if (_propStatePawn == null) _propStatePawn = AccessTools.Property(stateType, "Pawn");
+                if (_propRespId == null) _propRespId = AccessTools.Property(respType, "Id");
+                if (_propRespText == null) _propRespText = AccessTools.Property(respType, "Text");
+                if (_propRespTargetName == null) _propRespTargetName = AccessTools.Property(respType, "TargetName");
+                if (_propRespTargetPawn == null) _propRespTargetPawn = AccessTools.Property(respType, "TargetPawn");
+                if (_propRespParentTalkId == null) _propRespParentTalkId = AccessTools.Property(respType, "ParentTalkId");
+
+                Pawn pawn = _propStatePawn?.GetValue(pawnState) as Pawn;
+                if (pawn == null) return;
+
+                Guid talkId = Guid.Empty;
+                if (_propRespId != null) talkId = (Guid)_propRespId.GetValue(__result);
+                if (talkId == Guid.Empty) return; // failsafe dummy response
+
+                string text = _propRespText?.GetValue(__result) as string;
+                if (string.IsNullOrEmpty(text)) return;
+
+                string targetName = _propRespTargetName?.GetValue(__result) as string;
+                Pawn targetPawn = _propRespTargetPawn?.GetValue(__result) as Pawn;
+                Guid parentTalkId = Guid.Empty;
+                if (_propRespParentTalkId != null) parentTalkId = (Guid)_propRespParentTalkId.GetValue(__result);
+
+                Patch_TalkService_CreateInteraction.RecordTalkTurn(pawn, pawn.LabelShort, text, targetName, targetPawn, talkId, parentTalkId);
             }
             catch (Exception) { }
         }
