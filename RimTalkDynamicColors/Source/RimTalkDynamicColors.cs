@@ -2081,7 +2081,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static FieldInfo _lineHeightField;
         private static FieldInfo _isCacheDirtyField;
         private static MethodInfo _recalcMethod;
-        private static PropertyInfo _propMessageId;
+        private static FieldInfo _rawDialogueField;
         private static Type _rimTalkSettingsType;
         private static Type _settingsModType;
         private static MethodInfo _getModMethod;
@@ -2293,41 +2293,43 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                             string dialogue = _dialogueField?.GetValue(msg) as string;
 
                             // Find matched history item from SessionHistory (which has 100% accurate data)
-                            // PRIMARY: deterministic TalkId match — the overlay row's ApiLog.Id equals the
-                            // TalkResponse.Id we recorded in SessionHistory (same Guid; RimTalk's ConsumeTalk
-                            // resolves SpokenTick via GetApiLog(talkResponse.Id)). This kills ALL ambiguity
-                            // when several pawns chat simultaneously.
-                            // SECONDARY: text match (exact / prefix-tolerant ≥20 chars) for rows that have
-                            // no TalkId (player messages recorded before Id plumbing, legacy entries).
+                            // PRIMARY: RawDialogue exact match — CachedMessageLine.RawDialogue is the raw,
+                            // never-colorized, never-truncated turn text (truncation only applies to the
+                            // Dialogue field) and equals the OriginalContent we recorded, so this is
+                            // deterministic even when several pawns chat simultaneously.
+                            // SECONDARY: same exact match ignoring the speaker reference (covers cache
+                            // PawnInstance resolution gaps).
+                            // TERTIARY: Dialogue-based match (strip rich tags + bidirectional prefix
+                            // tolerance ≥20 chars) for any residual formatting difference.
                             LogItem matchedItem = null;
-                            if (_propMessageId == null) _propMessageId = AccessTools.Property(t, "Id");
-                            if (_propMessageId != null)
+                            string rawDialogueForMatch = null;
+                            if (_rawDialogueField == null) _rawDialogueField = AccessTools.Field(t, "RawDialogue") ?? AccessTools.Field(t, "rawDialogue");
+                            if (_rawDialogueField != null)
+                                rawDialogueForMatch = _rawDialogueField.GetValue(msg) as string;
+
+                            if (!string.IsNullOrEmpty(rawDialogueForMatch))
                             {
-                                try
+                                for (int pass = 0; pass < 2 && matchedItem == null; pass++)
                                 {
-                                    Guid messageId = (Guid)_propMessageId.GetValue(msg);
-                                    if (messageId != Guid.Empty)
+                                    for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
                                     {
-                                        for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
+                                        var hist = DynamicColorMod.SessionHistory[h];
+                                        if (hist == null) continue;
+                                        if (pass == 0 && hist.SpeakerPawn != speaker) continue;
+                                        if (hist.OriginalContent == rawDialogueForMatch)
                                         {
-                                            var hist = DynamicColorMod.SessionHistory[h];
-                                            if (hist != null && hist.TalkId == messageId)
-                                            {
-                                                matchedItem = hist;
-                                                break;
-                                            }
+                                            matchedItem = hist;
+                                            break;
                                         }
                                     }
                                 }
-                                catch { }
                             }
                             if (matchedItem == null)
                             {
-                                // NOTE: RimTalk no longer pre-colorizes the cached Dialogue (v1.2.14+), but our
-                                // own colorization may already be applied on earlier frames, so strip rich tags
-                                // before comparing against the raw OriginalContent. RimTalk can also TRUNCATE
-                                // the newest cached line (FitDialogueToHeight adds a trailing "…"), hence the
-                                // bidirectional prefix tolerance (≥20 chars).
+                                // NOTE: our own colorization may already be applied on earlier frames, so
+                                // strip rich tags before comparing against the raw OriginalContent. RimTalk
+                                // can also TRUNCATE the newest cached line (FitDialogueToHeight adds a
+                                // trailing "…"), hence the bidirectional prefix tolerance (≥20 chars).
                                 string cleanDialogueForMatch = string.IsNullOrEmpty(dialogue) ? "" : RichTagRegex.Replace(dialogue, "").Trim();
                                 string cleanedDialogueNoEllipsis = cleanDialogueForMatch.TrimEnd('…', '.');
                                 for (int h = DynamicColorMod.SessionHistory.Count - 1; h >= 0; h--)
