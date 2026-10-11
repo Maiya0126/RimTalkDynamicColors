@@ -3,6 +3,8 @@
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
 	<RTDC_EnableNativeBubbleSupport>ネイティブ吹き出しサポート</RTDC_EnableNativeBubbleSupport>
+	<RTDC_HangIndentHistory>ぶら下げインデント</RTDC_HangIndentHistory>
+	<RTDC_HangIndentHistoryDesc>有効にすると、各メッセージの1行目は名前の右から始まり、折り返し行は名前の左端に揃えられ、読みやすくなります。初期状態で有効です。</RTDC_HangIndentHistoryDesc>
 	<RTDC_EnableNativeBubbleSupportDesc>有効にすると、RimTalk 標準のネイティブ吹き出し（v1.2.6+）にも色付けが自動適用されます。旧 Interaction Bubbles と区別する必要はありません。初期状態で有効です。</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>DynamicColors チャットログ</RTDC_HistoryTab>

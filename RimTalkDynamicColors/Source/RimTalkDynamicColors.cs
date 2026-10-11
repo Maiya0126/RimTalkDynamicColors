@@ -82,6 +82,9 @@ namespace RimTalkDynamicColors
         // [新增] 是否在历史记录窗口显示头像
         public bool showAvatarInHistory = true;
 
+        // 悬挂缩进（参考 RimTuber 弹幕窗）：记录窗内容首行从名字后开始，换行回卷到名字左端
+        public bool hangIndentHistory = true;
+
 public bool showDirectionalArrow = true;
         public bool showDirectionalArrowInHistory = true;
         public bool showDirectionalArrowVertical = false;
@@ -250,6 +253,7 @@ public bool showDirectionalArrow = true;
             Scribe_Values.Look(ref isGlobalEnabled, "isGlobalEnabled", true);
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
             Scribe_Values.Look(ref showAvatarInHistory, "showAvatarInHistory", true); // 保存头像开关
+            Scribe_Values.Look(ref hangIndentHistory, "hangIndentHistory", true);
             Scribe_Values.Look(ref showDirectionalArrow, "showDirectionalArrow", true);
             Scribe_Values.Look(ref showDirectionalArrowInHistory, "showDirectionalArrowInHistory", true);
             Scribe_Values.Look(ref showDirectionalArrowVertical, "showDirectionalArrowVertical", false);
@@ -363,10 +367,16 @@ public bool showDirectionalArrow = true;
 
         private static List<float> _cachedRowHeights = new List<float>();
         private static List<float> _cachedRowYPositions = new List<float>();
+        private static List<string> _cachedRowHangFirst = new List<string>();
+        private static List<string> _cachedRowHangRest = new List<string>();
         private static float _cachedTotalHeight = 0f;
         private static int _lastHistoryCount = -1;
         private static string _lastFilterName = "";
         private static float _lastViewWidth = 0f;
+        private static bool _lastHangState = true;
+        private static bool _lastDimMode = true;
+        private static bool _lastAvatarState = true;
+        private static bool _lastArrowState = true;
 
         public static string filterPawnName = "All";
         public static bool filterDimMode = true;
@@ -494,6 +504,12 @@ public bool showDirectionalArrow = true;
             SessionHistory.Clear();
             RecordedObjects.Clear();
             RecordedTalkIds.Clear();
+            _cachedRowHeights.Clear();
+            _cachedRowYPositions.Clear();
+            _cachedRowHangFirst.Clear();
+            _cachedRowHangRest.Clear();
+            _cachedTotalHeight = 0f;
+            _lastHistoryCount = -1;
         }
 
         public static string GetRelationshipPrefix(Pawn speaker, Pawn recipient)
@@ -1016,6 +1032,147 @@ public bool showDirectionalArrow = true;
             if (def != null) { def.buttonVisible = settings.showHistoryTab; }
         }
 
+        private static readonly char[] BreakChars = new[] { ' ', ',', '.', '，', '。', '！', '？', '、', '；', ';', ':', '：' };
+
+        private static int SnapOutsideTags(string text, int pos)
+        {
+            if (pos <= 0) return 0;
+            if (pos >= text.Length) return text.Length;
+
+            int lastOpen = text.LastIndexOf('<', pos - 1);
+            if (lastOpen >= 0)
+            {
+                int nextClose = text.IndexOf('>', lastOpen);
+                if (nextClose >= pos)
+                {
+                    return lastOpen;
+                }
+            }
+            return pos;
+        }
+
+        private static string BuildCandidateWithClosedTags(string text, int cutPos, out List<string> openTags)
+        {
+            openTags = new List<string>();
+            string sub = text.Substring(0, cutPos);
+            StringBuilder sb = new StringBuilder(sub);
+
+            int i = 0;
+            while (i < sub.Length)
+            {
+                if (sub[i] == '<')
+                {
+                    int close = sub.IndexOf('>', i);
+                    if (close > i)
+                    {
+                        string tag = sub.Substring(i, close - i + 1);
+                        if (tag.StartsWith("</"))
+                        {
+                            if (openTags.Count > 0)
+                                openTags.RemoveAt(openTags.Count - 1);
+                        }
+                        else
+                        {
+                            openTags.Add(tag);
+                        }
+                        i = close + 1;
+                        continue;
+                    }
+                }
+                i++;
+            }
+
+            while (sb.Length > 0 && char.IsWhiteSpace(sb[sb.Length - 1]))
+            {
+                sb.Length--;
+            }
+
+            for (int t = openTags.Count - 1; t >= 0; t--)
+            {
+                string tag = openTags[t];
+                if (tag.StartsWith("<color", StringComparison.OrdinalIgnoreCase))
+                    sb.Append("</color>");
+                else if (tag.StartsWith("<b", StringComparison.OrdinalIgnoreCase))
+                    sb.Append("</b>");
+                else if (tag.StartsWith("<i", StringComparison.OrdinalIgnoreCase))
+                    sb.Append("</i>");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 悬挂缩进断行（参考 RimTuber 弹幕窗）：把富文本 text 按 firstWidth 截出首行，剩余行放入 rest，
+        /// 并在截断处自动补齐/重开未闭合的富文本标签，防止断行破坏 rich text。
+        /// </summary>
+        private static void SplitRichTextFirstLine(string richText, float firstWidth, out string firstLine, out string rest)
+        {
+            firstLine = richText ?? "";
+            rest = null;
+            if (string.IsNullOrEmpty(firstLine)) return;
+            if (Text.CalcSize(firstLine).x <= firstWidth) return;
+
+            int low = 1;
+            int high = firstLine.Length;
+            int best = 0;
+
+            while (low <= high)
+            {
+                int mid = (low + high) / 2;
+                int safeMid = SnapOutsideTags(firstLine, mid);
+                if (safeMid <= 0)
+                {
+                    high = mid - 1;
+                    continue;
+                }
+
+                string candidate = BuildCandidateWithClosedTags(firstLine, safeMid, out _);
+                if (Text.CalcSize(candidate).x <= firstWidth)
+                {
+                    best = safeMid;
+                    low = mid + 1;
+                }
+                else
+                {
+                    high = mid - 1;
+                }
+            }
+
+            if (best <= 0)
+            {
+                rest = firstLine;
+                firstLine = "";
+                return;
+            }
+
+            int breakIdx = firstLine.LastIndexOfAny(BreakChars, best - 1);
+            if (breakIdx > best / 2)
+            {
+                int safeBreak = SnapOutsideTags(firstLine, breakIdx + 1);
+                if (safeBreak > 0 && safeBreak <= best)
+                {
+                    best = safeBreak;
+                }
+            }
+
+            firstLine = BuildCandidateWithClosedTags(firstLine, best, out List<string> openTags);
+            string rawRest = richText.Substring(best).TrimStart();
+            if (string.IsNullOrEmpty(rawRest))
+            {
+                rest = null;
+            }
+            else
+            {
+                StringBuilder restSb = new StringBuilder();
+                for (int t = 0; t < openTags.Count; t++)
+                {
+                    restSb.Append(openTags[t]);
+                }
+                restSb.Append(rawRest);
+                rest = restSb.ToString();
+            }
+        }
+
         // ==============================================================
         // [修改核心] 历史记录绘制 (加入了头像渲染支持)
         // ==============================================================
@@ -1071,11 +1228,19 @@ public bool showDirectionalArrow = true;
             float avatarSpace = settings.showAvatarInHistory ? 28f : 0f;
             float viewWidth = viewerRect.width - 20f;
 
-            bool needRecalculate = _lastHistoryCount != displayList.Count || _lastFilterName != filterPawnName || Math.Abs(_lastViewWidth - viewWidth) > 1f;
+            bool needRecalculate = _lastHistoryCount != displayList.Count
+                || _lastFilterName != filterPawnName
+                || _lastDimMode != filterDimMode
+                || _lastHangState != settings.hangIndentHistory
+                || _lastAvatarState != settings.showAvatarInHistory
+                || _lastArrowState != settings.showDirectionalArrowInHistory
+                || Math.Abs(_lastViewWidth - viewWidth) > 1f;
             if (needRecalculate)
             {
                 _cachedRowHeights.Clear();
                 _cachedRowYPositions.Clear();
+                _cachedRowHangFirst.Clear();
+                _cachedRowHangRest.Clear();
                 _cachedTotalHeight = 0f;
 
                 for (int i = 0; i < displayList.Count; i++)
@@ -1094,9 +1259,37 @@ public bool showDirectionalArrow = true;
                         : $"[{cleanPawnName}]";
 
                     Vector2 nameSize = Text.CalcSize(displayNameStr);
-                    float textWidth = viewWidth - (nameSize.x + 15f) - avatarSpace;
-                    float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
-                    float rowHeight = Mathf.Max(24f, textHeight);
+                    float textWidth = Mathf.Max(40f, viewWidth - (nameSize.x + 15f) - avatarSpace);
+
+                    bool isItemDimmed = (filterPawnName != "All" && filterDimMode && item.PawnName != filterPawnName);
+                    string textToProcess = isItemDimmed ? item.CleanContent : item.Content;
+
+                    float rowHeight;
+                    if (settings.hangIndentHistory)
+                    {
+                        float restW = Mathf.Max(40f, viewWidth - avatarSpace - 5f);
+                        SplitRichTextFirstLine(textToProcess, textWidth, out string fl, out string rest);
+                        _cachedRowHangFirst.Add(fl);
+                        _cachedRowHangRest.Add(rest);
+
+                        float firstH = Mathf.Max(24f, Text.LineHeightOf(GameFont.Small));
+                        if (string.IsNullOrEmpty(rest))
+                        {
+                            rowHeight = firstH;
+                        }
+                        else
+                        {
+                            float restH = Text.CalcHeight(rest, restW);
+                            rowHeight = firstH + restH + 2f;
+                        }
+                    }
+                    else
+                    {
+                        _cachedRowHangFirst.Add(null);
+                        _cachedRowHangRest.Add(null);
+                        float textHeight = Text.CalcHeight(item.CleanContent, textWidth);
+                        rowHeight = Mathf.Max(24f, textHeight);
+                    }
 
                     _cachedRowYPositions.Add(_cachedTotalHeight);
                     _cachedRowHeights.Add(rowHeight);
@@ -1105,6 +1298,10 @@ public bool showDirectionalArrow = true;
 
                 _lastHistoryCount = displayList.Count;
                 _lastFilterName = filterPawnName;
+                _lastDimMode = filterDimMode;
+                _lastHangState = settings.hangIndentHistory;
+                _lastAvatarState = settings.showAvatarInHistory;
+                _lastArrowState = settings.showDirectionalArrowInHistory;
                 _lastViewWidth = viewWidth;
             }
 
@@ -1186,7 +1383,9 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                     }
                 }
 
-                Rect nameRect = new Rect(lineRect.x + avatarSpace, lineRect.y, nameSize.x + 10f, rowHeight);
+                float firstLineH = Mathf.Max(24f, Text.LineHeightOf(GameFont.Small));
+                float nameH = settings.hangIndentHistory ? firstLineH : rowHeight;
+                Rect nameRect = new Rect(lineRect.x + avatarSpace, lineRect.y, nameSize.x + 10f, nameH);
                 Color nameColorToDraw = isDimmed ? item.NameColor * 0.6f : item.NameColor;
                 nameColorToDraw.a = isDimmed ? 0.3f : 1f;
                 Color vanillaColor = Color.white;
@@ -1211,8 +1410,27 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
 
                 // 内容文本框
                 GUI.color = isDimmed ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
-                Rect diagRect = new Rect(nameRect.xMax, lineRect.y, textWidth, rowHeight);
-                Widgets.Label(diagRect, contentToShow);
+                if (settings.hangIndentHistory && i < _cachedRowHangFirst.Count && _cachedRowHangFirst[i] != null)
+                {
+                    string fl = _cachedRowHangFirst[i];
+                    string rest = _cachedRowHangRest[i];
+                    Rect firstRect = new Rect(nameRect.xMax, lineRect.y, textWidth, firstLineH);
+                    Widgets.Label(firstRect, fl);
+
+                    if (!string.IsNullOrEmpty(rest))
+                    {
+                        float restX = lineRect.x + avatarSpace;
+                        float restW = Mathf.Max(40f, viewWidth - avatarSpace - 5f);
+                        float restH = rowHeight - firstLineH;
+                        Rect restRect = new Rect(restX, lineRect.y + firstLineH, restW, restH);
+                        Widgets.Label(restRect, rest);
+                    }
+                }
+                else
+                {
+                    Rect diagRect = new Rect(nameRect.xMax, lineRect.y, textWidth, rowHeight);
+                    Widgets.Label(diagRect, contentToShow);
+                }
 
                 GUI.color = originalGuiColor;
             }
@@ -1293,6 +1511,11 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
             TooltipHandler.TipRegion(new Rect(row2.x, row2.y, halfW - 5f, 24f), "RTDC_AutoExportHistoryDesc".Translate());
 
             Widgets.CheckboxLabeled(new Rect(row2.x + halfW, row2.y, halfW - 5f, 24f), "RTDC_ShowAvatarInHistory".Translate(), ref settings.showAvatarInHistory);
+
+            // 行2.5：悬挂缩进开关（参考 RimTuber 弹幕窗的悬挂缩进）
+            Rect rowHang = listing.GetRect(24f);
+            Widgets.CheckboxLabeled(new Rect(rowHang.x, rowHang.y, rowHang.width - 5f, 24f), "RTDC_HangIndentHistory".Translate(), ref settings.hangIndentHistory);
+            TooltipHandler.TipRegion(new Rect(rowHang.x, rowHang.y, rowHang.width - 5f, 24f), "RTDC_HangIndentHistoryDesc".Translate());
 
             // 行3：Bubbles 检测
             bool hasBubbles = hasBubblesMod;

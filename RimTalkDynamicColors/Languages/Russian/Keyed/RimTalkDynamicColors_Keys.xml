@@ -3,6 +3,8 @@
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
 	<RTDC_EnableNativeBubbleSupport>Поддержка встроенных облачков</RTDC_EnableNativeBubbleSupport>
+	<RTDC_HangIndentHistory>Висячий отступ</RTDC_HangIndentHistory>
+	<RTDC_HangIndentHistoryDesc>Если включено, первая строка каждого сообщения начинается после имени, а перенесённые строки выравниваются по левому краю имени для удобства чтения. Включено по умолчанию.</RTDC_HangIndentHistoryDesc>
 	<RTDC_EnableNativeBubbleSupportDesc>При включении раскраска автоматически применяется и к встроенным облачкам RimTalk (v1.2.6+), не нужно отличать их от старых Interaction Bubbles. Включено по умолчанию.</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>Журнал DynamicColors</RTDC_HistoryTab>

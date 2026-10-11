@@ -3,6 +3,8 @@
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
 	<RTDC_EnableNativeBubbleSupport>Native Bubble Support</RTDC_EnableNativeBubbleSupport>
+	<RTDC_HangIndentHistory>Hanging Indent</RTDC_HangIndentHistory>
+	<RTDC_HangIndentHistoryDesc>When enabled, the first line of each message starts after the name, and wrapped lines align back to the name's left edge for cleaner reading. Enabled by default.</RTDC_HangIndentHistoryDesc>
 	<RTDC_EnableNativeBubbleSupportDesc>When enabled, coloring is automatically applied to RimTalk's built-in native speech bubbles (v1.2.6+), so you don't need to tell apart old Interaction Bubbles from native bubbles. Enabled by default.</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>DynamicColors Chat Log</RTDC_HistoryTab>

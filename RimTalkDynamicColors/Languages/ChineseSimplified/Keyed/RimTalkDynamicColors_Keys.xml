@@ -3,6 +3,8 @@
 	<RTDC_ModName>RimTalk DynamicColors 边缘世谭-言出多彩</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors 边缘世谭-言出多彩</RTDC_SettingsTitle>
 	<RTDC_EnableNativeBubbleSupport>原生气泡支持</RTDC_EnableNativeBubbleSupport>
+	<RTDC_HangIndentHistory>悬挂缩进</RTDC_HangIndentHistory>
+	<RTDC_HangIndentHistoryDesc>开启后，记录窗中每句话的首行从名字右侧开始，换行时回卷到名字左端对齐，阅读更整洁。默认开启。</RTDC_HangIndentHistoryDesc>
 	<RTDC_EnableNativeBubbleSupportDesc>开启后，会自动为 RimTalk 自带的原生对话气泡（v1.2.6+）应用染色，无需区分旧版 Interaction Bubbles 与原生气泡。默认开启。</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>言出多彩记录窗</RTDC_HistoryTab>
