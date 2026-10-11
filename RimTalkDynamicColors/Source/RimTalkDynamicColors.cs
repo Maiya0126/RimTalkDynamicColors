@@ -84,6 +84,8 @@ namespace RimTalkDynamicColors
 
         // 悬挂缩进（参考 RimTuber 弹幕窗）：记录窗内容首行从名字后开始，换行回卷到名字左端
         public bool hangIndentHistory = true;
+        // 悬挂缩进：RimTalk 悬浮窗中每条对话首行从名字后开始，换行回卷到悬浮窗左端全宽
+        public bool hangIndentOverlay = true;
 
 public bool showDirectionalArrow = true;
         public bool showDirectionalArrowInHistory = true;
@@ -254,6 +256,7 @@ public bool showDirectionalArrow = true;
             Scribe_Values.Look(ref showHistoryTab, "showHistoryTab", true);
             Scribe_Values.Look(ref showAvatarInHistory, "showAvatarInHistory", true); // 保存头像开关
             Scribe_Values.Look(ref hangIndentHistory, "hangIndentHistory", true);
+            Scribe_Values.Look(ref hangIndentOverlay, "hangIndentOverlay", true);
             Scribe_Values.Look(ref showDirectionalArrow, "showDirectionalArrow", true);
             Scribe_Values.Look(ref showDirectionalArrowInHistory, "showDirectionalArrowInHistory", true);
             Scribe_Values.Look(ref showDirectionalArrowVertical, "showDirectionalArrowVertical", false);
@@ -1101,32 +1104,23 @@ public bool showDirectionalArrow = true;
             return sb.ToString();
         }
 
-        /// <summary>
-        /// 悬挂缩进断行（参考 RimTuber 弹幕窗）：把富文本 text 按 firstWidth 截出首行，剩余行放入 rest，
-        /// 并在截断处自动补齐/重开未闭合的富文本标签，防止断行破坏 rich text。
-        /// </summary>
-        private static void SplitRichTextFirstLine(string richText, float firstWidth, out string firstLine, out string rest)
+        private static void SplitAtWidth(string text, float firstWidth, int searchLimit, string extraAfter, out string firstLine, out string rest)
         {
-            firstLine = richText ?? "";
-            rest = null;
-            if (string.IsNullOrEmpty(firstLine)) return;
-            if (Text.CalcSize(firstLine).x <= firstWidth) return;
-
             int low = 1;
-            int high = firstLine.Length;
+            int high = searchLimit;
             int best = 0;
 
             while (low <= high)
             {
                 int mid = (low + high) / 2;
-                int safeMid = SnapOutsideTags(firstLine, mid);
+                int safeMid = SnapOutsideTags(text, mid);
                 if (safeMid <= 0)
                 {
                     high = mid - 1;
                     continue;
                 }
 
-                string candidate = BuildCandidateWithClosedTags(firstLine, safeMid, out _);
+                string candidate = BuildCandidateWithClosedTags(text, safeMid, out _);
                 if (Text.CalcSize(candidate).x <= firstWidth)
                 {
                     best = safeMid;
@@ -1140,37 +1134,89 @@ public bool showDirectionalArrow = true;
 
             if (best <= 0)
             {
-                rest = firstLine;
                 firstLine = "";
+                rest = text;
+                if (!string.IsNullOrEmpty(extraAfter)) rest += "\n" + extraAfter;
                 return;
             }
 
-            int breakIdx = firstLine.LastIndexOfAny(BreakChars, best - 1);
+            int breakIdx = text.LastIndexOfAny(BreakChars, best - 1);
             if (breakIdx > best / 2)
             {
-                int safeBreak = SnapOutsideTags(firstLine, breakIdx + 1);
+                int safeBreak = SnapOutsideTags(text, breakIdx + 1);
                 if (safeBreak > 0 && safeBreak <= best)
                 {
                     best = safeBreak;
                 }
             }
 
-            firstLine = BuildCandidateWithClosedTags(firstLine, best, out List<string> openTags);
-            string rawRest = richText.Substring(best).TrimStart();
-            if (string.IsNullOrEmpty(rawRest))
+            firstLine = BuildCandidateWithClosedTags(text, best, out List<string> openTags);
+            string remainder = text.Substring(best, searchLimit - best).TrimStart();
+            StringBuilder restSb = new StringBuilder();
+            for (int t = 0; t < openTags.Count; t++)
+                restSb.Append(openTags[t]);
+
+            restSb.Append(remainder);
+            if (!string.IsNullOrEmpty(extraAfter))
             {
-                rest = null;
+                if (restSb.Length > 0 && !remainder.EndsWith("\n"))
+                    restSb.Append('\n');
+                restSb.Append(extraAfter);
             }
-            else
+
+            rest = restSb.ToString();
+            if (string.IsNullOrEmpty(rest?.Trim())) rest = null;
+        }
+
+        /// <summary>
+        /// 悬挂缩进断行（参考 RimTuber 弹幕窗）：把富文本 text 按 firstWidth 截出首行，剩余行放入 rest，
+        /// 并在截断处自动补齐/重开未闭合的富文本标签，防止断行破坏 rich text。
+        /// 严格处理 '\n'：首行绝不能包含换行符；若文本含换行，以第一行换行为硬性边界，杜绝第二行被覆盖遮挡。
+        /// </summary>
+        public static void SplitRichTextFirstLine(string richText, float firstWidth, out string firstLine, out string rest)
+        {
+            firstLine = richText ?? "";
+            rest = null;
+            if (string.IsNullOrEmpty(firstLine)) return;
+
+            int newlineIdx = firstLine.IndexOf('\n');
+            if (newlineIdx >= 0)
             {
-                StringBuilder restSb = new StringBuilder();
-                for (int t = 0; t < openTags.Count; t++)
+                int line1End = newlineIdx;
+                if (line1End > 0 && firstLine[line1End - 1] == '\r')
+                    line1End--;
+
+                string beforeNewline = firstLine.Substring(0, line1End);
+                string afterNewline = firstLine.Substring(newlineIdx + 1);
+
+                int safeLen = SnapOutsideTags(beforeNewline, beforeNewline.Length);
+                string candidate = BuildCandidateWithClosedTags(beforeNewline, safeLen, out _);
+
+                if (Text.CalcSize(candidate).x <= firstWidth)
                 {
-                    restSb.Append(openTags[t]);
+                    firstLine = BuildCandidateWithClosedTags(beforeNewline, safeLen, out List<string> openTags);
+                    if (string.IsNullOrEmpty(afterNewline))
+                    {
+                        rest = null;
+                    }
+                    else
+                    {
+                        StringBuilder restSb = new StringBuilder();
+                        for (int t = 0; t < openTags.Count; t++)
+                            restSb.Append(openTags[t]);
+                        restSb.Append(afterNewline);
+                        rest = restSb.ToString();
+                    }
+                    return;
                 }
-                restSb.Append(rawRest);
-                rest = restSb.ToString();
+
+                SplitAtWidth(firstLine, firstWidth, line1End, afterNewline, out firstLine, out rest);
+                return;
             }
+
+            if (Text.CalcSize(firstLine).x <= firstWidth) return;
+
+            SplitAtWidth(firstLine, firstWidth, firstLine.Length, null, out firstLine, out rest);
         }
 
         // ==============================================================
@@ -1539,6 +1585,10 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
             DrawTwoColumnCheckbox(listing,
                 "RTDC_ShowDirectionalArrow".Translate(), ref settings.showDirectionalArrow, "RTDC_ShowDirectionalArrowDesc".Translate(),
                 "RTDC_EnableRelationEffects".Translate(), ref settings.enableRelationEffects, "RTDC_EnableRelationEffectsDesc".Translate());
+
+            // 悬浮窗悬挂缩进开关（首行在名字后，换行回卷到最左端全宽）
+            listing.CheckboxLabeled("RTDC_HangIndentOverlay".Translate(), ref settings.hangIndentOverlay,
+                "RTDC_HangIndentOverlayDesc".Translate());
 
             // 历史记录窗 / 导出 的指向箭头独立开关（默认开，独立于主箭头开关）
             listing.CheckboxLabeled("RTDC_ShowDirectionalArrowHistory".Translate(), ref settings.showDirectionalArrowInHistory,
@@ -2340,6 +2390,18 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
         private static FieldInfo _directionWidthField;
         private static FieldInfo _rightBracketWidthField;
 
+        private static readonly Color AnnounceBgColor = new Color(0.8f, 0.5f, 0.0f, 0.18f);
+        private static readonly Color AnnounceNameColor = new Color(1.0f, 0.78f, 0.2f);
+        private static readonly Color AnnounceTextColor = new Color(1.0f, 0.92f, 0.65f);
+        private static readonly Color UserNameColor = new Color(1.0f, 0.85f, 0.40f);
+        private static readonly Color UserTextColor = new Color(0.98f, 0.93f, 0.78f);
+
+        private static MethodInfo _drawParticipantsMethod;
+        private static FieldInfo _conversationIdField;
+        private static FieldInfo _showGroupColorsField;
+        private static FieldInfo _isUserEnteredField;
+        private static FieldInfo _talkTypeField;
+
         private static void SetStringFieldIfChanged(FieldInfo field, object msg, string value)
         {
             if (field == null) return;
@@ -2441,7 +2503,42 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
             return 13f;
         }
 
-        public static void Prefix(object __instance, Rect inRect)
+        private static bool GetOverlayShowGroupColors()
+        {
+            try
+            {
+                if (_rimTalkSettingsType == null) _rimTalkSettingsType = AccessTools.TypeByName("RimTalk.RimTalkSettings");
+                if (_settingsModType == null) _settingsModType = AccessTools.TypeByName("RimTalk.Settings");
+                if (_rimTalkSettingsType == null || _settingsModType == null) return true;
+
+                if (_getModMethod == null)
+                {
+                    var lmmType = AccessTools.TypeByName("Verse.LoadedModManager");
+                    _getModMethod = lmmType?.GetMethod("GetMod",
+                        BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Type) }, null);
+                }
+
+                object mod = _getModMethod?.Invoke(null, new object[] { _settingsModType });
+                if (mod == null) return true;
+
+                if (_getSettingsMethod == null)
+                    _getSettingsMethod = _settingsModType.GetMethod("GetSettings");
+                if (_getSettingsTMethod == null && _getSettingsMethod != null && _rimTalkSettingsType != null)
+                    _getSettingsTMethod = _getSettingsMethod.MakeGenericMethod(_rimTalkSettingsType);
+                object settingsInstance = _getSettingsTMethod?.Invoke(mod, null);
+                if (settingsInstance == null) return true;
+
+                if (_showGroupColorsField == null)
+                    _showGroupColorsField = _rimTalkSettingsType.GetField("OverlayShowGroupColors",
+                        BindingFlags.Public | BindingFlags.Instance);
+                if (_showGroupColorsField != null)
+                    return (bool)_showGroupColorsField.GetValue(settingsInstance);
+            }
+            catch { }
+            return true;
+        }
+
+        public static bool Prefix(object __instance, Rect inRect)
         {
             DynamicColorMod.IsDrawingChatLog = true;
             DynamicColorMod.lastChatLogFrame = Time.frameCount;
@@ -2465,7 +2562,7 @@ string displayNameStr = (settings.showDirectionalArrowInHistory && !string.IsNul
                     }
 
                     if (_cachedMessagesField == null) _cachedMessagesField = AccessTools.Field(__instance.GetType(), "_cachedMessagesForLog");
-                    if (_cachedMessagesField == null) return;
+                    if (_cachedMessagesField == null) return true;
                     var list = _cachedMessagesField.GetValue(__instance) as System.Collections.IList;
                     if (list != null)
                     {
@@ -2902,17 +2999,159 @@ else
                                 // Measure the text that will actually be drawn (colorized; rich-text aware,
                                 // same as RimTalk's CalcRichTextHeight). Tags add zero layout width.
                                 string textToMeasure = string.IsNullOrEmpty(colorizedDialogue) ? (dialogue ?? "") : colorizedDialogue;
-                                float dialogueHeightNow = Text.CurFontStyle.CalcHeight(new GUIContent(textToMeasure), newDialogueWidth);
 
                                 bool twoLineName = DynamicColorMod.settings.showDirectionalArrow
                                                    && DynamicColorMod.settings.showDirectionalArrowVertical
                                                    && recipientPawn != null;
+                                float singleNameH = Mathf.Max(Text.LineHeightOf(GameFont.Small), Text.CalcSize("[" + (cleanRawName ?? "") + "]").y);
                                 float nameColumnHeight = twoLineName
                                     ? Text.LineHeightOf(GameFont.Small) * 2f + 2f
-                                    : Text.CalcSize("[" + (cleanRawName ?? "") + "]").y;
+                                    : singleNameH;
 
-                                float syncedLineHeight = Mathf.Max(dialogueHeightNow, nameColumnHeight) + 2f;
+                                float syncedLineHeight;
+                                if (DynamicColorMod.settings.isGlobalEnabled && DynamicColorMod.settings.hangIndentOverlay && !twoLineName)
+                                {
+                                    DynamicColorMod.SplitRichTextFirstLine(textToMeasure, newDialogueWidth, out string fl, out string rest);
+                                    float restH = string.IsNullOrEmpty(rest) ? 0f : Text.CurFontStyle.CalcHeight(new GUIContent(rest), rowWidth);
+                                    syncedLineHeight = singleNameH + restH + 2f;
+                                }
+                                else
+                                {
+                                    float dialogueHeightNow = Text.CurFontStyle.CalcHeight(new GUIContent(textToMeasure), newDialogueWidth);
+                                    syncedLineHeight = Mathf.Max(dialogueHeightNow, nameColumnHeight) + 2f;
+                                }
+
                                 SetFloatFieldIfChanged(_lineHeightField, msg, syncedLineHeight);
+                            }
+                        }
+
+                        // ===== [OVERLAY HANGING INDENT RENDERER] =====
+                        // When hangIndentOverlay is ON, draw the overlay rows directly so line 1 starts
+                        // after the name and wrapped lines (line 2+) wrap back to the left edge across
+                        // the full width of the overlay, instead of being cramped in a narrow right column.
+                        if (DynamicColorMod.settings.isGlobalEnabled
+                            && DynamicColorMod.settings.hangIndentOverlay
+                            && _speakerLabelField != null
+                            && _lineHeightField != null
+                            && _nameWidthField != null)
+                        {
+                            try
+                            {
+                                Rect contentRect = inRect.ContractedBy(5f);
+                                float currentY = contentRect.yMax;
+
+                                if (_drawParticipantsMethod == null)
+                                    _drawParticipantsMethod = AccessTools.Method(__instance.GetType(), "DrawParticipants");
+
+                                bool showGroupColors = GetOverlayShowGroupColors();
+
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    var message = list[i];
+                                    if (message == null) continue;
+                                    Type t = message.GetType();
+                                    if (_conversationIdField == null) _conversationIdField = AccessTools.Field(t, "ConversationId") ?? AccessTools.Field(t, "conversationId");
+                                    if (_isUserEnteredField == null) _isUserEnteredField = AccessTools.Field(t, "IsUserEntered") ?? AccessTools.Field(t, "isUserEntered");
+                                    if (_talkTypeField == null) _talkTypeField = AccessTools.Field(t, "TalkType") ?? AccessTools.Field(t, "talkType");
+
+                                    float lh = (float)_lineHeightField.GetValue(message);
+                                    float remainingHeight = currentY - contentRect.y;
+                                    if (i > 0 && lh > remainingHeight) break;
+
+                                    float rowHeight = i == 0 ? Mathf.Min(lh, remainingHeight) : lh;
+                                    currentY -= rowHeight;
+
+                                    if (showGroupColors && _conversationIdField != null)
+                                    {
+                                        try
+                                        {
+                                            int convId = (int)_conversationIdField.GetValue(message);
+                                            Color groupColor = UIUtil.GetConversationColor(convId);
+                                            if (groupColor != Color.clear)
+                                                Widgets.DrawBoxSolid(new Rect(inRect.x, currentY, 2.5f, rowHeight), groupColor);
+                                        }
+                                        catch { }
+                                    }
+
+                                    Rect rowRect = new Rect(contentRect.x, currentY, contentRect.width, rowHeight);
+                                    float msgNameWidth = (float)_nameWidthField.GetValue(message);
+                                    string msgDiag = _dialogueField != null ? (_dialogueField.GetValue(message) as string ?? "") : "";
+                                    string msgTargetLabel = _targetLabelField != null ? (_targetLabelField.GetValue(message) as string) : null;
+
+                                    bool isUserEntered = false;
+                                    if (_isUserEnteredField != null)
+                                    {
+                                        try { isUserEntered = (bool)_isUserEnteredField.GetValue(message); } catch { }
+                                    }
+                                    string talkTypeStr = "";
+                                    if (_talkTypeField != null)
+                                    {
+                                        try { talkTypeStr = _talkTypeField.GetValue(message)?.ToString() ?? ""; } catch { }
+                                    }
+
+                                    bool isAnnouncement = isUserEntered && talkTypeStr == "Announcement";
+                                    bool isUser = isUserEntered && talkTypeStr == "User";
+
+                                    bool twoLine = DynamicColorMod.settings.showDirectionalArrow
+                                                   && DynamicColorMod.settings.showDirectionalArrowVertical
+                                                   && !string.IsNullOrEmpty(msgTargetLabel);
+
+                                    float firstH = Mathf.Max(Text.LineHeightOf(GameFont.Small), Text.CalcSize("[A]").y);
+                                    Rect participantRowRect = twoLine
+                                        ? rowRect
+                                        : new Rect(rowRect.x, rowRect.y, rowRect.width, Mathf.Min(firstH, rowRect.height));
+
+                                    Color origColor = GUI.color;
+                                    if (isAnnouncement)
+                                    {
+                                        Widgets.DrawBoxSolid(rowRect, AnnounceBgColor);
+                                        GUI.color = AnnounceNameColor;
+                                    }
+                                    else if (isUser)
+                                    {
+                                        GUI.color = UserNameColor;
+                                    }
+
+                                    _drawParticipantsMethod?.Invoke(null, new object[] { participantRowRect, message });
+
+                                    if (isAnnouncement) GUI.color = AnnounceTextColor;
+                                    else if (isUser) GUI.color = UserTextColor;
+                                    else GUI.color = Color.white;
+
+                                    if (!twoLine)
+                                    {
+                                        float firstLineW = Mathf.Max(20f, rowRect.width - msgNameWidth - 5f);
+                                        float fullW = rowRect.width;
+                                        DynamicColorMod.SplitRichTextFirstLine(msgDiag, firstLineW, out string fl, out string rest);
+
+                                        Rect firstRect = new Rect(rowRect.x + msgNameWidth + 5f, rowRect.y, firstLineW, Mathf.Min(firstH, rowRect.height));
+                                        Widgets.Label(firstRect, fl);
+
+                                        if (!string.IsNullOrEmpty(rest) && rowRect.height > firstH)
+                                        {
+                                            float restH = rowRect.height - firstH;
+                                            Rect restRect = new Rect(rowRect.x, rowRect.y + firstH, fullW, restH);
+                                            Widgets.Label(restRect, rest);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        float dialogueWidth = Mathf.Max(1f, rowRect.width - msgNameWidth - 5f);
+                                        Rect dialogueRect = new Rect(rowRect.x + msgNameWidth + 5f, rowRect.y, dialogueWidth, rowRect.height);
+                                        Widgets.Label(dialogueRect, msgDiag);
+                                    }
+
+                                    GUI.color = origColor;
+                                }
+
+                                Text.Font = prevFont;
+                                Text.fontStyles[(int)GameFont.Small].fontSize = prevSmallFontSize;
+                                Text.Anchor = prevAnchor;
+                                return false;
+                            }
+                            catch (Exception drawEx)
+                            {
+                                Log.Error($"[RimTalk DynamicColors] Error in Overlay Hanging Indent draw: {drawEx}");
                             }
                         }
 
@@ -2930,6 +3169,7 @@ else
                     Log.Error($"[RimTalk DynamicColors] Error in DrawMessageLog Prefix: {ex}");
                 }
             }
+            return true;
         }
 
         public static void Postfix(object __instance)

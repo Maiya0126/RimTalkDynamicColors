@@ -3,8 +3,10 @@
 	<RTDC_ModName>RimTalk DynamicColors</RTDC_ModName>
 	<RTDC_SettingsTitle>RimTalk DynamicColors</RTDC_SettingsTitle>
 	<RTDC_EnableNativeBubbleSupport>네이티브 말풍선 지원</RTDC_EnableNativeBubbleSupport>
-	<RTDC_HangIndentHistory>행어 인덴트</RTDC_HangIndentHistory>
+	<RTDC_HangIndentHistory>기록창 행어 인덴트</RTDC_HangIndentHistory>
 	<RTDC_HangIndentHistoryDesc>켜면 각 메시지의 첫 줄이 이름 오른쪽에서 시작하고, 줄바꿈된 줄은 이름 왼쪽 끝에 맞춰 정렬되어 더 깔끔하게 읽힙니다. 기본적으로 켜져 있습니다.</RTDC_HangIndentHistoryDesc>
+	<RTDC_HangIndentOverlay>오버레이 행어 인덴트</RTDC_HangIndentOverlay>
+	<RTDC_HangIndentOverlayDesc>켜면 RimTalk 오버레이의 대화 첫 줄이 이름 오른쪽에서 시작하고, 줄바꿈된 줄은 왼쪽 끝 전폭에 정렬되어 좁은 우측 열에 갇히지 않습니다. 기본적으로 켜져 있습니다.</RTDC_HangIndentOverlayDesc>
 	<RTDC_EnableNativeBubbleSupportDesc>켜면 RimTalk 기본 네이티브 말풍선(v1.2.6+)에도 색상이 자동 적용됩니다. 기존 Interaction Bubbles와 구분할 필요가 없습니다. 기본적으로 켜져 있습니다.</RTDC_EnableNativeBubbleSupportDesc>
 
 	<RTDC_HistoryTab>DynamicColors 채팅 로그</RTDC_HistoryTab>
